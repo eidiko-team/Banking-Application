@@ -16,4 +16,9 @@ public class CustomerService {
         return "Customer has been added successfully";
     }
 
+    public String delete(Long id){
+        customerRepo.deleteById(id);
+        return "Customer deleted successfully";
+    }
+
 }
