@@ -21,4 +21,9 @@ public class CustomerService {
         return "Customer deleted successfully";
     }
 
+    public String getCustomer(Long id){
+        customerRepo.findById(id);
+        return "Customer deleted successfully";
+    }
+
 }
