@@ -1,18 +1,18 @@
 package com.example.cruds;
 
-import com.example.cruds.models.Customer;
 import com.example.cruds.services.AccountService;
+import com.example.cruds.services.LoanService;
 import com.example.cruds.services.TransactionService;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.ImportResource;
 
 @SpringBootApplication
+@ImportResource("classpath:bean.xml")
 public class CrudsApplication {
 
 	public static void main(String[] args) {
-
-
 
 
 		ApplicationContext context = SpringApplication.run(CrudsApplication.class, args);
@@ -21,12 +21,17 @@ public class CrudsApplication {
 
 		TransactionService transactionService = context.getBean(TransactionService.class);
 
-        Customer customer = context.getBean(Customer.class);
 
-		customer.displayy();
+		LoanService loanService = context.getBean(LoanService.class);
+
+		loanService.display();
+
 		transactionService.service();
 
 		accountService.message();
+
+
+
 	}
 
 }
