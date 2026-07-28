@@ -12,8 +12,33 @@ public class CustomerService {
     private CustomerRepo customerRepo;
 
     public String addCustomer(Customer customer){
-        customerRepo.save(customer);
+        Customer customer1 = customerRepo.save(customer);
         return "Customer has been added successfully";
     }
+
+    public Customer getCustomer(Long id){
+        Customer customer = customerRepo.findById(id).get();
+        return customer;
+    }
+
+    public String delete(Long id){
+        customerRepo.deleteById(id);
+        return "Customer deleted successfully with id "+id;
+    }
+
+    public Customer update(Long id, Customer customer){
+        Customer customer1 = customerRepo.findById(id).get();
+
+        customer1.builder()
+                .email(customer.getEmail())
+                .phone(customer.getPhone())
+                .address(customer.getAddress())
+                .build();
+
+        customerRepo.save(customer1);
+        return customer1;
+    }
+
+
 
 }

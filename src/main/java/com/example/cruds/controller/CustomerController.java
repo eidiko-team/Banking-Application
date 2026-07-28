@@ -19,4 +19,23 @@ public class CustomerController {
 
     }
 
+    @GetMapping("/get")
+    public Customer getCustomer(@RequestParam Long id){
+        Customer customer = customerService.getCustomer(id);
+        return customer;
+    }
+
+    @DeleteMapping("/delete")
+    public String delete(@RequestParam Long id){
+        return customerService.delete(id);
+
+    }
+
+    @PutMapping("/update")
+    public Customer update(@RequestParam Long id, @RequestBody Customer customer){
+        return customerService.update(id,customer);
+
+    }
+
+
 }
