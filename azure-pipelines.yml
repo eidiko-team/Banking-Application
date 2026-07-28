@@ -1,0 +1,11 @@
+trigger:
+- master
+
+pool:
+  name: My-Local-Agent-Pool
+
+steps:
+- checkout: self
+
+- script: mvn clean package
+  displayName: 'Build Java Project'
