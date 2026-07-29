@@ -1,0 +1,78 @@
+1. Request enters Spring MVC
+2. Spring tries to prepare controller method arguments
+3. @Valid detects invalid data
+4. Spring throws MethodArgumentNotValidException
+5. Spring searches for a matching @ExceptionHandler
+6. GlobalExceptionHandler handles it
+7. A custom response is returned
+
+
+*******Flow for the validation exception handling***********
+
+┌─────────────────────────────┐
+│         Postman             │
+│                             │
+│ POST /customer/addCustomer  │
+│                             │
+│ {                           │
+│   "name": "",               │
+│   "email": "wrong-email"    │
+│ }                           │
+└──────────────┬──────────────┘
+               │
+               ▼
+┌─────────────────────────────┐
+│          Tomcat             │
+└──────────────┬──────────────┘
+               │
+               ▼
+┌─────────────────────────────┐
+│     DispatcherServlet       │
+└──────────────┬──────────────┘
+               │
+               ▼
+┌─────────────────────────────┐
+│ Find Controller Method      │
+│                             │
+│ CustomerController          │
+│ /customer/addCustomer       │
+└──────────────┬──────────────┘
+               │
+               ▼
+┌─────────────────────────────┐
+│       @RequestBody          │
+│                             │
+│ JSON → Customer object       │
+└──────────────┬──────────────┘
+               │
+               ▼
+┌─────────────────────────────┐
+│          @Valid             │
+│                             │
+│ Validate Customer           │
+└──────────────┬──────────────┘
+               │
+               ▼
+        ┌──────┴──────┐
+        │             │
+     VALID         INVALID
+        │             │
+        ▼             ▼
+ Controller       Exception
+ method runs      created
+        │             │
+        ▼             ▼
+ CustomerService  MethodArgument-
+                  NotValidException
+                      │
+                      ▼
+              GlobalExceptionHandler
+                      │
+                      ▼
+                 @ExceptionHandler
+                      │
+                      ▼
+                 ErrorResponse
+                      │
+                      ▼
+                 HTTP 400 JSON
