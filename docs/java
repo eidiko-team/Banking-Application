@@ -1,0 +1,32 @@
+String vs StringBuilder vs StringBuffer Comparison
+Code
+String s = "abc";
+String s1 = new String("abc");
+StringBuilder sb = new StringBuilder("abc");
+StringBuffer sbf = new StringBuffer("abc");
+
+System.out.println(s == s1);                  // false
+System.out.println(s.equals(s1));             // true
+
+System.out.println(s.equals(sb));             // false
+System.out.println(s.equals(sb.toString()));  // true
+
+System.out.println(s.equals(sbf));            // false
+System.out.println(s.equals(sbf.toString())); // true
+Output
+false
+true
+false
+true
+false
+true
+Key Points
+== → Compares references (memory addresses).
+equals() → Compares contents (only with another String).
+StringBuilder and StringBuffer are not String objects.
+Use toString() to compare a StringBuilder or StringBuffer with a String.
+Difference Between StringBuilder and StringBuffer
+StringBuilder	StringBuffer
+Not thread-safe	Thread-safe (synchronized)
+Faster	Slightly slower
+Used in single-threaded applications	Used in multi-threaded applications

@@ -1,0 +1,203 @@
+Replacing Embedded Tomcat with Jetty in Spring Boot
+Objective
+
+By default, Spring Boot applications use the embedded Apache Tomcat server. If you want your application to run on Jetty instead, you need to remove Tomcat and add Jetty.
+
+1. Default Behavior
+
+When you add the following dependency:
+
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-web</artifactId>
+</dependency>
+
+Spring Boot automatically includes:
+
+spring-boot-starter-web
+        │
+        ├── Spring MVC
+        ├── Jackson
+        ├── Validation
+        └── spring-boot-starter-tomcat
+                    │
+                    └── Embedded Tomcat Server
+
+So, when you run:
+
+mvn spring-boot:run
+
+or
+
+java -jar target/app.jar
+
+Tomcat starts automatically.
+
+Example log:
+
+Tomcat started on port(s): 8080 (http)
+Started Application
+2. Why Replace Tomcat?
+
+Spring Boot supports multiple embedded servlet containers.
+
+Server	Description
+Tomcat	Default server used by Spring Boot
+Jetty	Lightweight, highly scalable web server
+Undertow	High-performance web server from Red Hat
+
+Sometimes organizations standardize on Jetty for deployment or performance reasons.
+
+3. Remove Tomcat
+
+Since Tomcat is added transitively by spring-boot-starter-web, you must exclude it.
+
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-web</artifactId>
+
+    <exclusions>
+        <exclusion>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-tomcat</artifactId>
+        </exclusion>
+    </exclusions>
+
+</dependency>
+What does this do?
+
+Without exclusion:
+
+spring-boot-starter-web
+            │
+            └── spring-boot-starter-tomcat
+
+After exclusion:
+
+spring-boot-starter-web
+            │
+            └── (Tomcat removed)
+4. Add Jetty
+
+Now add Jetty explicitly.
+
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-jetty</artifactId>
+</dependency>
+
+Now the dependency tree becomes:
+
+spring-boot-starter-web
+            │
+            ├── Spring MVC
+            ├── Jackson
+            └── Validation
+
+spring-boot-starter-jetty
+            │
+            └── Embedded Jetty Server
+5. Complete pom.xml
+<!-- Spring MVC -->
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-web</artifactId>
+
+    <exclusions>
+        <exclusion>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-tomcat</artifactId>
+        </exclusion>
+    </exclusions>
+
+</dependency>
+
+<!-- Embedded Jetty -->
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-jetty</artifactId>
+</dependency>
+6. Run the Application
+mvn spring-boot:run
+
+or
+
+mvn clean package
+java -jar target/project.jar
+7. Startup Logs
+Tomcat
+Tomcat started on port(s): 8080 (http)
+Started Application
+Jetty
+Started ServerConnector
+Jetty started on port 8080
+Started Application
+
+Seeing Jetty in the logs confirms that your application is running with Jetty.
+
+8. Verify the Dependency
+
+Run:
+
+mvn dependency:tree
+Expected Output
+spring-boot-starter-web
+
+spring-boot-starter-jetty
+
+You should not see:
+
+spring-boot-starter-tomcat
+
+If spring-boot-starter-tomcat still appears, it means Tomcat has not been fully excluded.
+
+9. Internal Working
+Default Flow (Tomcat)
+Application Starts
+        │
+        ▼
+Spring Boot
+        │
+        ▼
+Reads Dependencies
+        │
+        ▼
+Finds spring-boot-starter-web
+        │
+        ▼
+Loads Embedded Tomcat
+        │
+        ▼
+Creates DispatcherServlet
+        │
+        ▼
+Starts Tomcat on Port 8080
+        │
+        ▼
+Application Ready
+After Replacing with Jetty
+Application Starts
+        │
+        ▼
+Spring Boot
+        │
+        ▼
+Reads Dependencies
+        │
+        ▼
+Tomcat Excluded
+        │
+        ▼
+Finds spring-boot-starter-jetty
+        │
+        ▼
+Creates Embedded Jetty Server
+        │
+        ▼
+Creates DispatcherServlet
+        │
+        ▼
+Starts Jetty on Port 8080
+        │
+        ▼
+Application Ready

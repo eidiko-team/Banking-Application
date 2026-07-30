@@ -1,0 +1,443 @@
+1. Why do we use mvn package?
+When you are developing a Java project, your source code is just a collection of .java files. The server (like Tomcat) cannot execute .java files directly.
+The project must go through a build process.
+mvn package tells Maven:
+"Take my source code, compile it, run tests, and package everything into a deployable application."
+
+What happens when you run mvn package?
+Suppose your project looks like this:
+Banking/
+│
+├── src/
+│   ├── main/
+│   │   ├── java/
+│   │   └── resources/
+│   └── test/
+│
+├── pom.xml
+When you execute
+mvn package
+Maven follows its build lifecycle.
+Step 1: Validate
+It checks whether the project is valid.
+Is pom.xml correct?
+Are dependencies defined correctly?
+Is the project structure valid?
+If something is wrong, Maven stops here.
+
+Step 2: Compile
+Maven compiles all Java files.
+Before:
+Customer.java
+Account.java
+Transaction.java
+After compilation:
+Customer.class
+Account.class
+Transaction.class
+The .class files are created inside
+target/classes
+
+Step 3: Run Tests
+If you have test classes under
+src/test/java
+Maven executes them.
+Example:
+CustomerServiceTest.java
+If tests fail, the build usually stops.
+
+Step 4: Package
+Now Maven creates a deployable file.
+Depending on your pom.xml:
+If
+<packaging>jar</packaging>
+
+
+
+you get
+target/
+    Banking.jar
+If
+<packaging>war</packaging>
+you get
+target/
+    Banking.war
+
+Why do we need this WAR/JAR?
+Imagine you've written a book.
+The chapters are separate files.
+You can't hand someone hundreds of loose pages.
+Instead, you bind them into one book.
+Similarly:
+Before packaging:
+Controller.java
+Service.java
+Repository.java
+pom.xml
+application.properties
+After packaging:
+Banking.war
+Everything is bundled together.
+
+
+
+
+
+
+
+
+In your Azure DevOps pipeline
+You executed
+mvn package
+because the pipeline needs the generated artifact.
+Without running it:
+No target folder
+No WAR
+Nothing to deploy
+After running it:
+target/
+    Banking.war
+The pipeline uploads this WAR as the build artifact.
+Then the release/deployment stage deploys it to the server.
+
+
+Flow of maven package
+Write Java Code
+        ▼
+src/main/java
+        ▼
+mvn package
+        ▼
+Compile .java → .class
+        ▼
+Run Tests
+        ▼
+Package Everything
+        ▼
+target/
+   Banking.war
+        ▼
+Publish Artifact
+        ▼
+Azure Release Pipeline
+        ▼
+Tomcat Server
+        ▼
+Application Running
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+2. What is an Artifact?
+An artifact is the final output produced after building your project.
+Think of it as the finished product that can be deployed or shared.
+For a Java project, artifacts are usually:
+JAR (.jar)
+WAR (.war)
+Sometimes ZIP files, EAR files, or other packaged outputs
+
+Real-world analogy
+Imagine you are building a car.
+Steel, engine, tires, seats → Raw materials (your source code)
+Factory → Maven
+Assembly process → Build process
+Finished car → Artifact
+You don't ship individual car parts to the customer—you ship the completed car.
+Similarly, you don't deploy individual .java files to a server—you deploy the packaged artifact.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@Entity → JPA/Hibernate entity
+ @Data → getters, setters, equals, hashCode, toString
+@Builder → Customer.builder()
+@NoArgsConstructor → Customer()
+@AllArgsConstructor → constructor with all fields
+
+
+@Data
+public class Customer {
+ private Long customerId;
+ private String name; private String email;
+ }
+
+@Getter
+ @Setter
+@RequiredArgsConstructor
+@ToString
+@EqualsAndHashCode
+
+is roughly equivalent to writing:
+
+public class Customer {
+
+    private Long customerId;
+    private String name;
+    private String email;
+
+    public Long getCustomerId() {
+        return customerId;
+    }
+
+    public void setCustomerId(Long customerId) {
+        this.customerId = customerId;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    @Override
+    public String toString() {
+        // generated implementation
+        return "...";
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        // generated implementation
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        // generated implementation
+        return 0;
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Customer Entity, Request Body, Constructors & @Id
+1. Request Body to Java Object
+When the client sends JSON:
+{
+  "name": "Ravi",
+  "email": "ravi@gmail.com",
+  "phone": "9876543210",
+  "address": "Hyderabad"
+}
+and the controller contains:
+@PostMapping("/addCustomer")
+public String addCustomer(@RequestBody Customer customer) {
+    customerService.addCustomer(customer);
+    return "Customer Added Successfully";
+}
+Spring uses Jackson to convert the JSON request body into a Java Customer object.
+JSON Request
+     ↓
+   Jackson
+     ↓
+Customer Java Object
+     ↓
+   Service
+     ↓
+customerRepo.save()
+     ↓
+   Hibernate
+     ↓
+  Database
+
+
+
+
+
+
+2. Why @NoArgsConstructor?
+@NoArgsConstructor
+creates:
+public Customer() {
+}
+Jackson/JPA can use the no-argument constructor to create an empty Customer object and then populate its fields.
+Conceptually:
+Customer customer = new Customer();
+
+customer.setName("Ravi");
+customer.setEmail("ravi@gmail.com");
+So the no-args constructor is important when frameworks need to instantiate the entity.
+
+3. Why @AllArgsConstructor?
+@AllArgsConstructor
+generates a constructor containing all fields:
+new Customer(
+    1L,
+    "Ravi",
+    "ravi@gmail.com",
+    "9876543210",
+    "Hyderabad"
+);
+It is mainly useful when we manually want to create a fully populated object.
+It is not specifically required for @RequestBody.
+
+
+
+
+
+4. Why @Builder?
+@Builder
+allows us to create objects using:
+Customer customer = Customer.builder()
+        .name("Ravi")
+        .email("ravi@gmail.com")
+        .phone("9876543210")
+        .address("Hyderabad")
+        .build();
+It is useful for clean object creation in our Java code.
+@Builder is not what Jackson uses for normal @RequestBody conversion.
+
+5. Why @RequiredArgsConstructor?
+@RequiredArgsConstructor
+is commonly used for constructor dependency injection.
+For example:
+@Service
+@RequiredArgsConstructor
+public class CustomerService {
+    private final CustomerRepo customerRepo;
+}
+Lombok generates approximately:
+public CustomerService(CustomerRepo customerRepo) {
+    this.customerRepo = customerRepo;
+}
+So @RequiredArgsConstructor is generally related to dependency injection, not JSON conversion.
+
+
+
+
+
+6. Why @Id?
+A JPA entity must have an identifier.
+@Entity
+public class Customer {
+    @Id
+    private Long customerId;
+    private String name;
+    private String email;
+}
+@Id tells Hibernate:
+This field uniquely identifies a row in the database.
+For example:
+customer_id | name
+------------|------
+1           | Ravi
+2           | Rahul
+3           | Arun
+customerId identifies each customer.
+Without an @Id, Hibernate cannot properly identify the entity and the application will generally fail during startup.
+
+7. @Id vs @GeneratedValue
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+private Long customerId;
+They have different responsibilities:
+@Id
+      ↓
+Identifies the entity
+
+@GeneratedValue
+      ↓
+Automatically generates the ID
+For example, when you send:
+{
+  "name": "Ravi",
+  "email": "ravi@gmail.com"
+}
+you don't need to send:
+"customerId": 1
+because the database/JPA can generate it.
+
+8. Complete Entity Example
+@Entity
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class Customer {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long customerId;
+
+    private String name;
+    private String email;
+    private String phone;
+    private String address;
+}
+Purpose of each annotation
+Annotation
+Purpose
+@Entity
+Maps Java class to a database table
+@Data
+Generates getters, setters, toString(), equals(), hashCode()
+@Builder
+Provides Customer.builder()
+@NoArgsConstructor
+Creates no-argument constructor
+@AllArgsConstructor
+Creates constructor with all fields
+@Id
+Identifies the primary key
+@GeneratedValue
+Automatically generates the ID
+
+
+
