@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Customer Ledger</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="desk">
+
+    <header class="masthead">
+        <div class="masthead-left">
+            <span class="ledger-mark">§</span>
+            <div class="masthead-title">
+                <h1>The Customer Ledger</h1>
+                <p class="masthead-sub">A running account of every customer on file</p>
+            </div>
+        </div>
+        <nav class="tabs">
+            <button class="tab active" data-view="all">All Records</button>
+            <button class="tab" data-view="lookup">Look Up No.</button>
+            <button class="tab tab-new" data-view="new">＋ New Entry</button>
+        </nav>
+    </header>
+
+    <main class="ledger-book">
+
+        <section class="ledger-page" id="view-all">
+            <div class="page-head">
+                <h2>Open Accounts</h2>
+                <span class="entry-count" id="entryCount">0 entries</span>
+            </div>
+
+            <table class="ledger-table">
+                <thead>
+                <tr>
+                    <th class="col-no">No.</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Address</th>
+                    <th class="col-actions">Actions</th>
+                </tr>
+                </thead>
+                <tbody id="customerRows">
+                <!-- rows injected here -->
+                </tbody>
+            </table>
+
+            <p class="empty-state" id="emptyState" hidden>
+                No accounts recorded yet. Open a <button class="link-btn" data-view="new">new entry</button> to begin the ledger.
+            </p>
+        </section>
+
+        <section class="ledger-page" id="view-lookup" hidden>
+            <div class="page-head">
+                <h2>Look Up an Account</h2>
+            </div>
+            <form class="lookup-form" id="lookupForm">
+                <label for="lookupId">Account No.</label>
+                <input type="number" id="lookupId" placeholder="e.g. 1" min="1" required>
+                <button type="submit" class="btn btn-teal">Find Record</button>
+            </form>
+            <div id="lookupResult"></div>
+        </section>
+
+        <section class="ledger-page card-page" id="view-new" hidden>
+            <div class="index-card">
+                <div class="card-tab" id="cardTab">New Entry</div>
+                <h2 id="formTitle">Open a New Account</h2>
+                <form id="customerForm">
+                    <input type="hidden" id="customerId">
+                    <label for="name">Full Name</label>
+                    <input type="text" id="name" minlength="5" maxlength="40" required placeholder="Jane Alcott">
+
+                    <label for="email">Email</label>
+                    <input type="email" id="email" placeholder="jane@alcott.com">
+
+                    <label for="phone">Phone</label>
+                    <input type="text" id="phone" maxlength="10" placeholder="9876543210">
+
+                    <label for="address">Address</label>
+                    <textarea id="address" minlength="10" maxlength="100" required placeholder="14 Wren Street, Hyderabad"></textarea>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-gold" id="submitBtn">Enter into Ledger</button>
+                        <button type="button" class="btn btn-ghost" id="cancelEdit" hidden>Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+    </main>
+
+    <div class="toast" id="toast"></div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

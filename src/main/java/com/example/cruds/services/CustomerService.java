@@ -1,9 +1,12 @@
 package com.example.cruds.services;
 
+import com.example.cruds.exceptions.CustomerNotFoundException;
 import com.example.cruds.models.Customer;
 import com.example.cruds.repo.CustomerRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 public class CustomerService {
@@ -17,8 +20,13 @@ public class CustomerService {
     }
 
     public Customer getCustomer(Long id){
-        Customer customer = customerRepo.findById(id).get();
-        return customer;
+        try {
+            Customer customer = customerRepo.findById(id).get();
+            return customer;
+        }catch (Exception e){
+            throw new CustomerNotFoundException("customer not fount");
+        }
+
     }
 
     public String delete(Long id){
@@ -29,14 +37,20 @@ public class CustomerService {
     public Customer update(Long id, Customer customer){
         Customer customer1 = customerRepo.findById(id).get();
 
-        customer1.builder()
-                .email(customer.getEmail())
-                .phone(customer.getPhone())
-                .address(customer.getAddress())
-                .build();
+//        customer1.builder()
+//                .email(customer.getEmail())
+//                .phone(customer.getPhone())
+//                .address(customer.getAddress())
+//                .build();
+
+        customer1.setEmail(customer.getEmail());
 
         customerRepo.save(customer1);
         return customer1;
+    }
+
+    public List<Customer> getAll(){
+        return customerRepo.findAll();
     }
 
 

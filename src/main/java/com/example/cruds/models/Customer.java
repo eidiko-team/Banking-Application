@@ -1,5 +1,6 @@
 package com.example.cruds.models;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import lombok.Builder;
 import jakarta.validation.constraints.Email;
@@ -10,11 +11,13 @@ import jakarta.validation.constraints.Size;
 
 @Entity
 @Builder
+@Schema(description = "Customer ID", example = "1")
 public class Customer {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long customerId;
-    @NotNull
+    @Schema(description = "Customer Name", example = "John Doe")
+    @NotNull(message = "should be given")
     @Size(min = 5, max = 40, message = "Name must be between the 3 and the 40")
     private String name;
     @Email(message = "Email must be required")
