@@ -8,6 +8,9 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.HashMap;
 import java.util.Map;
 
+//Request → DispatcherServlet → Controller → Service → Repository → Exception thrown → DispatcherServlet
+//intercepts it → @RestControllerAdvice finds the matching @ExceptionHandler → Builds
+
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -33,5 +36,10 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .badRequest()
                 .body(response);
+    }
+
+    @ExceptionHandler(CustomerNotFoundException.class)
+    public ResponseEntity<String> customerNotFound(CustomerNotFoundException customerNotFoundException){
+        return ResponseEntity.badRequest().body(customerNotFoundException.getMessage());
     }
 }
