@@ -25,6 +25,7 @@ public class Account {
 
     private String status;
 
+
     @ManyToOne
     @JoinColumn(name = "customer_id")
     private Customer customer;

@@ -8,6 +8,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
+import java.util.List;
+
 
 @Entity
 @Builder
@@ -27,6 +29,8 @@ public class Customer {
     @NotBlank(message = "Address is required")
     @Size(min = 10 , max = 100, message = "Address must be between 10 and 100 characters")
     private String address;
+//    private List<Loan> loans;
+//    private List<Account> accouts;
 
     public Customer() {
     }

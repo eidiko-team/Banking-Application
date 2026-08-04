@@ -1,7 +1,6 @@
 package com.example.cruds.models;
 
 import jakarta.persistence.*;
-
 import java.time.LocalDateTime;
 
 public class Transaction {
