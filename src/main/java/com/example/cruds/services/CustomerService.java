@@ -1,7 +1,9 @@
 package com.example.cruds.services;
 
 import com.example.cruds.exceptions.CustomerNotFoundException;
+import com.example.cruds.models.Account;
 import com.example.cruds.models.Customer;
+import com.example.cruds.repo.AccountRepo;
 import com.example.cruds.repo.CustomerRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -13,6 +15,9 @@ public class CustomerService {
 
     @Autowired
     private CustomerRepo customerRepo;
+
+    @Autowired
+    private AccountRepo accountRepo;
 
     public String addCustomer(Customer customer){
         Customer customer1 = customerRepo.save(customer);
@@ -51,6 +56,12 @@ public class CustomerService {
 
     public List<Customer> getAll(){
         return customerRepo.findAll();
+    }
+
+    public List<Account> getAllAccountsOfCustomer(Long customerId){
+        Customer customer = customerRepo.findById(customerId).get();
+
+        return customer.getAccounts();
     }
 
 

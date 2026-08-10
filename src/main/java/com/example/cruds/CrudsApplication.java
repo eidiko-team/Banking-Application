@@ -3,6 +3,7 @@ package com.example.cruds;
 import com.example.cruds.services.AccountService;
 import com.example.cruds.services.LoanService;
 import com.example.cruds.services.TransactionService;
+import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ApplicationContext;
@@ -33,7 +34,7 @@ public class CrudsApplication {
 
 		transactionService.service();
 
-		accountService.message();
+//		accountService.message(); // i have removed this method if you want to test it add method in the account service again
 
 
 

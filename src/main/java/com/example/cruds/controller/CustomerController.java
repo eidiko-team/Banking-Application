@@ -1,5 +1,6 @@
 package com.example.cruds.controller;
 
+import com.example.cruds.models.Account;
 import com.example.cruds.models.Customer;
 import com.example.cruds.services.CustomerService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -8,6 +9,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
@@ -78,5 +80,11 @@ public class CustomerController {
     @GetMapping("/getAll")
     public List<Customer> getAll(){
         return customerService.getAll();
+    }
+
+    @GetMapping("/getAccounts")
+    public ResponseEntity<?> getAllAccountsOfCustomer(@RequestParam  Long id){
+        List<Account> accounts= customerService.getAllAccountsOfCustomer(id);
+        return ResponseEntity.ok(accounts);
     }
 }

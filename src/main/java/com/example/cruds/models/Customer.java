@@ -2,90 +2,50 @@ package com.example.cruds.models;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
 import java.util.List;
 
 
 @Entity
-@Builder
-@Schema(description = "Customer ID", example = "1")
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class Customer {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long customerId;
+
     @Schema(description = "Customer Name", example = "John Doe")
     @NotNull(message = "should be given")
     @Size(min = 5, max = 40, message = "Name must be between the 3 and the 40")
     private String name;
+
     @Email(message = "Email must be required")
     private String email;
+
     @Size(max = 10)
     private String phone;
+
     @NotBlank(message = "Address is required")
     @Size(min = 10 , max = 100, message = "Address must be between 10 and 100 characters")
     private String address;
-//    private List<Loan> loans;
-//    private List<Account> accouts;
 
-    public Customer() {
-    }
+    @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL)
+    private List<Account> accounts = new ArrayList<>();
 
-    public Customer(Long customerId, String name, String email, String phone, String address) {
-        this.customerId = customerId;
-        this.name = name;
-        this.email = email;
-        this.phone = phone;
-        this.address = address;
-    }
+    @OneToOne(mappedBy = "customer", cascade = CascadeType.ALL)
+    private Kyc kyc;
 
-    public Long getCustomerId() {
-        return customerId;
-    }
 
-    public void setCustomerId(Long customerId) {
-        this.customerId = customerId;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getPhone() {
-        return phone;
-    }
-
-    public void setPhone(String phone) {
-        this.phone = phone;
-    }
-
-    public String getAddress() {
-        return address;
-    }
-
-    public void setAddress(String address) {
-        this.address = address;
-    }
-
-    public void displayy(){
-        System.out.println("88888888888888888888888888888*************************");
-    }
 }
 
 
@@ -127,3 +87,30 @@ Annotation	Purpose	Example
 @FutureOrPresent	Date cannot be in the past	@FutureOrPresent
 @Digits	Validates integer and decimal digits	@Digits(integer = 10, fraction = 2)
 * */
+
+
+
+//| Annotation        | Purpose                                                    |
+//        | ----------------- | ---------------------------------------------------------- |
+//        | `@Entity`         | Maps class to a table                                      |
+//        | `@Table`          | Specifies the table name                                   |
+//        | `@Id`             | Marks the primary key                                      |
+//        | `@GeneratedValue` | Auto-generates primary key values                          |
+//        | `@Column`         | Maps a field to a column and customizes it                 |
+//        | `@Transient`      | Excludes a field from persistence                          |
+//        | `@Lob`            | Maps large text or binary data                             |
+//        | `@Enumerated`     | Stores enum values                                         |
+//        | `@OneToOne`       | One-to-one relationship                                    |
+//        | `@OneToMany`      | One parent, many children                                  |
+//        | `@ManyToOne`      | Many children, one parent                                  |
+//        | `@ManyToMany`     | Many-to-many relationship                                  |
+//        | `@JoinColumn`     | Defines the foreign key column                             |
+//        | `@JoinTable`      | Defines the join table for many-to-many                    |
+//        | `mappedBy`        | Specifies the inverse side of a bidirectional relationship |
+//        | `cascade`         | Propagates operations to related entities                  |
+//        | `fetch`           | Controls when related entities are loaded                  |
+//        | `orphanRemoval`   | Deletes child entities removed from a relationship         |
+//        | `@Embedded`       | Embeds an object into the same table                       |
+//        | `@Embeddable`     | Marks a class that can be embedded                         |
+//        | `@EmbeddedId`     | Defines a composite primary key                            |
+
