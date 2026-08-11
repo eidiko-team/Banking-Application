@@ -1,17 +1,14 @@
-package com.example.cruds.models;
+package com.example.cruds.dto;
 
-import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-@Entity
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class Loan {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+public class LoanResponseDTO {
+
     private Long loanId;
 
     private String loanType;
@@ -24,7 +21,5 @@ public class Loan {
 
     private String status;
 
-    @ManyToOne
-    @JoinColumn(name = "customer_id")
-    private Customer customer;
+    private Long customerId;
 }

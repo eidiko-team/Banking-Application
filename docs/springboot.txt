@@ -473,3 +473,16 @@ public ResponseEntity<String> createUser(@RequestBody User user) {
 
 
 
+
+
+What is mappedBy?
+"mappedBy is used in bidirectional relationships to tell JPA which field on the other
+ entity owns the relationship. It avoids creating a separate relationship mapping."
+
+
+What is cascade?
+"Cascade means when we perform an operation on one entity,
+JPA can automatically perform the same operation on its related entities."
+
+
+

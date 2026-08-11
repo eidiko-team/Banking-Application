@@ -3,14 +3,12 @@ package com.example.cruds.models;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -39,11 +37,27 @@ public class Customer {
     @Size(min = 10 , max = 100, message = "Address must be between 10 and 100 characters")
     private String address;
 
+//    Customer's accounts collection is the inverse side.
+//    The customer field in Account is the owning side.Because Account contains the foreign key:
+//    The entity containing the foreign key generally owns the relationship.
+
+//    "Customer has many Accounts, and operations performed on Customer" +
+//        " can be cascaded to its Accounts."
     @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL)
     private List<Account> accounts = new ArrayList<>();
 
     @OneToOne(mappedBy = "customer", cascade = CascadeType.ALL)
     private Kyc kyc;
+
+    @ManyToMany(mappedBy = "customers")
+    private List<LoanProduct> loanProducts = new ArrayList<>();
+
+    @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL)
+    private List<Loan> loans = new ArrayList<>();
+
+
+
+
 
 
 }

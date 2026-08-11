@@ -1,0 +1,7 @@
+Add/Update customer
+{
+    "name": "Ram Kumar",
+    "email": "ram@gmail.com",
+    "phone": "9876543210",
+    "address": "Hyderabad Telangana"
+}

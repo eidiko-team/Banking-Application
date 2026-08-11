@@ -18,7 +18,7 @@ public class Kyc {
     private Boolean verificationStatus;
 
     @OneToOne
-    @JoinColumn(name = "customer_id")
+    @JoinColumn(name = "customer_id",unique = true)
     private Customer customer;
 
 }

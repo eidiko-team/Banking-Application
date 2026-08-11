@@ -7,9 +7,11 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class KycRequestDTO {
-    private String aadhaarNumber;
-    private String panNumber;
-    private Boolean verificationStatus;
-    private Long customerid;
+public class LoanProductRequestDTO {
+
+    private String productName;
+
+    private Double interestRate;
+
+    private Integer maxTenureMonths;
 }
