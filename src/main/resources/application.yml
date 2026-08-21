@@ -1,0 +1,26 @@
+spring:
+  application:
+    name: cruds
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/banking
+    username: root
+    password: "Prasad@123"
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+server:
+  port: 8087
+
+# For testing @Value and @ConfigurationProperties
+bank:
+  name: ABC Bank
+  support-email: support@abcbank.com
+  max-login-attempts: 10
+  code: ABC001
+  support-phone: "1800123456"
+
+loan:
+  default-interest-rate: 8.5

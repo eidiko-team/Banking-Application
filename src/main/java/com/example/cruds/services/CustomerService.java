@@ -1,6 +1,8 @@
 package com.example.cruds.services;
 
+import com.example.cruds.config.BankProperties;
 import com.example.cruds.dto.*;
+import com.example.cruds.exceptions.CustomerAlreadyExistsException;
 import com.example.cruds.exceptions.CustomerNotFoundException;
 import com.example.cruds.models.*;
 import com.example.cruds.repo.AccountRepo;
@@ -10,6 +12,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.Optional;
 
 @Service
 public class CustomerService {
@@ -21,8 +25,28 @@ public class CustomerService {
     private AccountRepo accountRepo;
 
 
+    //This for testing the @configuratio properties in the config to read related fields
+    // at a time rather than @valid every time
+    @Autowired
+    private BankProperties bankProperties;
+
+    public String getBankInformation() {
+
+        return "Bank Name: " + bankProperties.getName()
+                + ", Bank Code: " + bankProperties.getCode()
+                + ", Support Email: " + bankProperties.getSupportEmail();
+    }
+
+
     // ADD CUSTOMER
     public CustomerResponseDTO addCustomer(CustomerRequestDTO request) {
+
+        Optional<Customer> existingCustomer = customerRepo.findByEmail(request.getEmail());
+
+        if (existingCustomer.isPresent()) {
+            throw new CustomerAlreadyExistsException("Customer already exists!!");
+
+        }
 
         Customer customer = new Customer();
 
@@ -40,10 +64,13 @@ public class CustomerService {
     // GET CUSTOMER
     public CustomerResponseDTO getCustomer(Long id) {
 
-        Customer customer = customerRepo.findById(id).orElseThrow(() ->
-                        new CustomerNotFoundException(
-                                "Customer not found with id " + id
-                        ));
+//        Customer customer = customerRepo.findById(id).orElseThrow(() ->
+//                        new CustomerNotFoundException(
+//                                "Customer not found with id " + id
+//                        ));
+
+                Customer customer = customerRepo.findById(id).orElseThrow(
+                () -> new NoSuchElementException("NO CUSTOMER PRESENT WITH ID = " + id));
 
         return convertToResponseDTO(customer);
     }

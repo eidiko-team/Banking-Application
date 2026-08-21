@@ -2,7 +2,6 @@ package com.example.cruds.controller;
 
 import com.example.cruds.dto.AccountRequestDTO;
 import com.example.cruds.dto.AccountResponseDTO;
-import com.example.cruds.models.Account;
 import com.example.cruds.services.AccountService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;

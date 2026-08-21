@@ -3,25 +3,53 @@ package com.example.cruds.controller;
 import com.example.cruds.dto.AccountResponseDTO;
 import com.example.cruds.dto.CustomerRequestDTO;
 import com.example.cruds.dto.CustomerResponseDTO;
+import com.example.cruds.exceptions.CustomerAlreadyExistsException;
+import com.example.cruds.exceptions.ErrorResponse1;
 import com.example.cruds.services.CustomerService;
+import com.example.cruds.services.PdfService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.util.List;
+import java.util.NoSuchElementException;
 
 @RestController
 @RequestMapping("/customer")
 @Tag(name = "Customer Controller", description = "Customer Management APIs")
 public class CustomerController {
 
+
     @Autowired
     private CustomerService customerService;
+
+    @Autowired
+    private PdfService pdfService;
+
+    //testing the @value here
+    @Value("${bank.name}")
+    private String bankName;
+
+    @GetMapping("/bankName")
+    public String getBankName() {
+        return bankName;
+    }
+
+    //Testing the @ConfigProperties here
+    @GetMapping("/BankInfo")
+    public String getBankInformation(){
+        return customerService.getBankInformation();
+    }
 
 
     @Operation(
@@ -134,4 +162,95 @@ public class CustomerController {
 
         return ResponseEntity.ok(accounts);
     }
+
+
+
+//    controller level handling or Using @ExceptionHandler Annotation
+    @ExceptionHandler(value = NoSuchElementException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ErrorResponse1 handleNoSuchElementException(NoSuchElementException ex) {
+        return new ErrorResponse1(HttpStatus.NOT_FOUND.value(), ex.getMessage());
+    }
+
+
+    @ExceptionHandler(CustomerAlreadyExistsException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse1 handleCustomerAlreadyExists(
+            CustomerAlreadyExistsException ex) {
+
+        return new ErrorResponse1(
+                HttpStatus.CONFLICT.value(),
+                ex.getMessage()
+        );
+    }
+
+//    @ExceptionHandler(CustomerAlreadyExistsException.class)
+//    public ResponseEntity<ErrorResponse1> handleCustomerAlreadyExists(
+//            CustomerAlreadyExistsException ex) {
+//
+//        ErrorResponse1 error = new ErrorResponse1(
+//                HttpStatus.CONFLICT.value(),
+//                ex.getMessage()
+//        );
+//
+//        return ResponseEntity
+//                .status(HttpStatus.CONFLICT)
+//                .body(error);
+//    }
+
+//----------------------------------------------------------------------------------------------------------
+//    Handling the Exception using the Try-catch in the controller any way using the global Handler is good
+//    because the controller layer stays clean
+    //---------------------------------------------------------------------------------------------------
+//    @PostMapping("/addCustomer")
+//    public ResponseEntity<?> addCustomer(
+//            @Valid @RequestBody CustomerRequestDTO request) {
+//
+//        try {
+//
+//            CustomerResponseDTO response =
+//                    customerService.addCustomer(request);
+//
+//            return ResponseEntity.ok(response);
+//
+//        } catch (CustomerAlreadyExistsException ex) {
+//
+//            ErrorResponse1 error = new ErrorResponse1(
+//                    HttpStatus.CONFLICT.value(),
+//                    ex.getMessage()
+//            );
+//
+//            return ResponseEntity
+//                    .status(HttpStatus.CONFLICT)
+//                    .body(error);
+//        }
+//    }
+
+
+    @GetMapping("/{customerId}/pdf")
+    public ResponseEntity<byte[]> downloadCustomerPdf(
+            @PathVariable Long customerId
+    ) throws IOException {
+
+        // Step 1: Get customer data
+        CustomerResponseDTO customer =
+                customerService.getCustomer(customerId);
+
+        // Step 2: Convert DTO to PDF
+        byte[] pdf =
+                pdfService.generateCustomerPdf(customer);
+
+        // Step 3: Return PDF
+        return ResponseEntity.ok()
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=customer_"
+                                + customerId
+                                + ".pdf"
+                )
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(pdf);
+    }
+
+
 }

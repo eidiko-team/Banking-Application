@@ -486,3 +486,65 @@ JPA can automatically perform the same operation on its related entities."
 
 
 
+The existing dependency classloader doesn't automatically reload that dependency in the same way.
+So you should manually restart the application after dependency changes.
+
+Remember:
+Java application code change
+        ↓
+DevTools restart
+
+but:
+
+Dependency changes
+        ↓
+Manual restart recommended
+
+
+
+
+What is a Web API?
+-----------------------
+A Web API is an API that allows two applications to communicate over a network, usually using HTTP/HTTPS.
+
+API
+ ↓
+General concept of communication between software
+
+Web API
+ ↓
+API accessed through the web/network
+
+REST API
+ ↓
+Web API designed using REST principles
+---------------------------------------------------------------------------------------------------------
+
+A RESTful API
+--------------------
+is a web API that follows REST architectural principles and
+uses HTTP methods such as GET, POST, PUT, and DELETE to perform operations on resources.
+It is generally stateless and commonly exchanges data in JSON format.
+
+
+Easy way to remember(Rest principles)
+REST
+│
+├── Client–Server
+├── Stateless
+├── Cacheable
+├── Uniform Interface
+├── Layered System
+└── Code on Demand (optional)
+
+
+
+-----------------------------------------------------------
+Key Approaches to Exception Handling in Spring Boot
+--------------------------------------------------------------
+Here are some key approaches to exception handling in Spring Boot:
+
+Default exception handling by Spring Boot
+Using @ExceptionHandler annotation
+Using @ControllerAdvice for global exception handling
+Using Try-catch we can catch that and return using the response entity
