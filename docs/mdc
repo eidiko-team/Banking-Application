@@ -1,0 +1,407 @@
+1. What is MDC?
+MDC allows us to attach contextual information to logs.
+For example, imagine multiple requests hitting your Spring Boot application:
+Request 1 → Customer ID: 101
+Request 2 → Customer ID: 205
+Request 3 → Customer ID: 301
+Normally, logs may look like:
+10:10:01 INFO  Getting customer
+10:10:01 INFO  Getting account
+10:10:02 ERROR Customer not found
+It can be difficult to identify which request produced which log.
+With MDC:
+10:10:01 [requestId=abc123] INFO  Getting customer
+10:10:01 [requestId=abc123] INFO  Getting account
+
+10:10:02 [requestId=xyz789] ERROR Customer not found
+Now we can easily track all logs belonging to a particular request.
+In simple words
+MDC stores contextual data for the current thread so that the information can automatically appear in every log generated during that request.
+
+
+Yes. Let's trace one request from start to end using your exact MDC implementation.
+Suppose you call:
+GET /accounts/10
+Your flow is:
+Client
+  ↓
+MdcFilter
+  ↓
+MDC values are added
+  ↓
+Controller
+  ↓
+Service
+  ↓
+Repository
+  ↓
+Response
+  ↓
+MDC.clear()
+
+2. MDC and ThreadLocal
+To understand MDC, first understand this:
+Each request in a Spring Boot application is generally handled by a thread.
+Example:
+Request 1 → Thread-A
+Request 2 → Thread-B
+Request 3 → Thread-C
+Now suppose we store a requestId.
+Thread-A → requestId = ABC123
+Thread-B → requestId = XYZ789
+Thread-C → requestId = PQR456
+Each thread has its own separate value.
+This is essentially what ThreadLocal helps with.
+Normal variable
+String requestId;
+This variable can be shared or overwritten depending on how it is used.
+ThreadLocal
+ThreadLocal<String> requestId = new ThreadLocal<>();
+Now each thread can have its own value:
+Thread-A → ABC123
+Thread-B → XYZ789
+One thread's value does not interfere with another thread's value.
+MDC works similarly
+When you do:
+MDC.put("requestId", "ABC123");
+MDC stores:
+Current Thread
+     ↓
+requestId = ABC123
+Then any log generated in that thread can access this MDC value.
+log.info("Getting customer");
+log.info("Getting account");
+log.error("Something went wrong");
+If your logging pattern includes requestId, the output can be:
+[ABC123] INFO  Getting customer
+[ABC123] INFO  Getting account
+[ABC123] ERROR Something went wrong
+Important methods
+MDC.put("requestId", "ABC123");
+Adds data to MDC.
+MDC.get("requestId");
+Gets the value.
+MDC.remove("requestId");
+Removes one value.
+MDC.clear();
+Removes all MDC values for the current thread.
+Why is remove() / clear() important?
+Spring Boot uses thread pools.
+A thread that handled one request can later handle another request:
+Thread-A
+   ↓
+Request 1 → requestId = ABC123
+
+Thread-A reused
+   ↓
+Request 2
+If we don't clear the old MDC data:
+Request 2 logs → requestId = ABC123 ❌
+So we must clean it:
+finally {
+    MDC.clear();
+}
+
+1. Request enters your application
+The client sends:
+GET /accounts/10
+Before the request reaches your controller, it passes through the filter chain.
+Your MDC filter is registered because of:
+@Component
+public class MdcFilter extends OncePerRequestFilter {
+@Component tells Spring:
+Create and manage this class as a Spring bean.
+OncePerRequestFilter makes this a Spring web filter.
+So the request reaches:
+protected void doFilterInternal(
+        HttpServletRequest request,
+        HttpServletResponse response,
+        FilterChain filterChain
+)
+
+2. Get or generate the requestId
+Your code:
+String requestId = request.getHeader("X-Request-Id");
+Spring checks whether the incoming request contains:
+X-Request-Id: something
+If the client sends:
+X-Request-Id: abc-123
+Then:
+requestId = "abc-123";
+If the client does not send it
+This code runs:
+if (requestId == null || requestId.isBlank()) {
+    requestId = UUID.randomUUID().toString();
+}
+For example:
+requestId = 550e8400-e29b-41d4-a716-446655440000
+Now this request has a unique ID.
+
+3. Store values in MDC
+Now your code enters:
+try {
+    MDC.put(REQUEST_ID, requestId);
+    MDC.put(METHOD, request.getMethod());
+    MDC.put(URI, request.getRequestURI());
+
+    log.info("Request started");
+
+    filterChain.doFilter(request, response);
+
+} finally {
+    MDC.clear();
+}
+Let's look at each line.
+Request ID
+MDC.put(REQUEST_ID, requestId);
+Since:
+private static final String REQUEST_ID = "requestId";
+This is effectively:
+MDC.put("requestId", "550e8400-e29b-41d4-a716-446655440000");
+
+HTTP method
+MDC.put(METHOD, request.getMethod());
+Since:
+private static final String METHOD = "method";
+and the request is:
+GET /accounts/10
+MDC stores:
+method = GET
+
+Request URI
+MDC.put(URI, request.getRequestURI());
+This stores:
+uri = /accounts/10
+
+4. What MDC now contains
+At this point, MDC contains something conceptually like:
+MDC
+
+requestId → 550e8400-e29b-41d4-a716-446655440000
+method    → GET
+uri       → /accounts/10
+These values are associated with the current request-processing thread.
+For example:
+Thread: nio-8087-exec-1
+
+MDC:
+requestId = 550e8400...
+method    = GET
+uri       = /accounts/10
+
+5. Your first log is executed
+Now:
+log.info("Request started");
+Normally, the logger only knows:
+INFO
+Logger name
+Message
+But your logging pattern contains:
+%X{requestId}
+%X{requestId} means:
+Go to MDC and get the value associated with the key requestId.
+Similarly:
+%X{method}
+gets:
+GET
+And:
+%X{uri}
+gets:
+/accounts/10
+So this:
+log.info("Request started");
+becomes something like:
+2026-08-27 18:35:11 - INFO -
+[requestId=550e8400...] -
+[GET /accounts/10] -
+com.example.cruds.config.MdcFilter -
+Request started
+
+6. filterChain.doFilter() continues the request
+This line is very important:
+filterChain.doFilter(request, response);
+It basically says:
+"My filter work is done for now. Continue processing this request."
+Then the request moves forward:
+MdcFilter
+    ↓
+Other Filters
+    ↓
+DispatcherServlet
+    ↓
+Controller
+Eventually, your controller executes.
+For example:
+log.info("Received request to add the Account with id {}", id);
+The controller does not need to do this again:
+MDC.put("requestId", requestId);
+Why?
+Because the MDC values are already available for the current request thread.
+So the controller log automatically gets:
+[requestId=550e8400...] [GET /accounts/10]
+
+7. Request goes to the service
+Your controller calls the service.
+For example:
+log.trace("Entering getAccount()");
+Then:
+log.info("Fetching Account with ID: {}", id);
+Then:
+log.debug("Account found successfully with ID: {}", id);
+You never manually pass the requestId like this:
+log.info("[{}] Fetching account", requestId);
+Instead, MDC handles it automatically.
+All logs still have:
+requestId = 550e8400...
+method = GET
+uri = /accounts/10
+So your complete logs might look like:
+INFO  [requestId=550e8400...] [GET /accounts/10] Request started
+
+INFO  [requestId=550e8400...] [GET /accounts/10]
+Received request to get Account with id 10
+
+TRACE [requestId=550e8400...] [GET /accounts/10]
+Entering getAccount()
+
+INFO  [requestId=550e8400...] [GET /accounts/10]
+Fetching Account with ID: 10
+
+DEBUG [requestId=550e8400...] [GET /accounts/10]
+Account found successfully with ID: 10
+The same request ID connects all these logs together.
+
+8. The response comes back
+After the controller and service finish:
+Repository
+   ↑
+Service
+   ↑
+Controller
+   ↑
+Filter Chain
+   ↑
+MdcFilter
+Remember this line:
+filterChain.doFilter(request, response);
+The filter waits until the rest of the request processing is completed.
+After that line finishes, execution returns to your filter.
+Then the finally block executes:
+finally {
+    MDC.clear();
+}
+
+9. Why MDC.clear() is important
+Suppose this thread handled your first request:
+Thread-1
+    ↓
+GET /accounts/10
+    ↓
+requestId = ABC
+After the request finishes, the thread can be reused:
+Thread-1
+    ↓
+POST /customers
+If you don't clear MDC, the old values may remain:
+Thread-1
+
+requestId = ABC ❌
+method = GET ❌
+uri = /accounts/10 ❌
+Then logs for the new request could accidentally contain old context.
+So:
+MDC.clear();
+removes:
+requestId
+method
+uri
+from MDC.
+The thread is now clean and can safely handle another request.
+
+Complete execution flow
+Your exact code works conceptually like this:
+1. Client sends
+
+   GET /accounts/10
+
+          ↓
+
+2. MdcFilter executes
+
+          ↓
+
+3. Check X-Request-Id header
+
+   Present?
+   ├── Yes → use it
+   │
+   └── No → generate UUID
+
+          ↓
+
+4. Store data in MDC
+
+   MDC.put("requestId", requestId)
+   MDC.put("method", "GET")
+   MDC.put("uri", "/accounts/10")
+
+          ↓
+
+5. log.info("Request started")
+
+   Logging pattern reads MDC values
+
+          ↓
+
+6. filterChain.doFilter()
+
+          ↓
+
+7. Controller logs
+
+   Same MDC values automatically available
+
+          ↓
+
+8. Service logs
+
+   Same MDC values automatically available
+
+          ↓
+
+9. Repository logs
+
+   Same MDC values automatically available
+
+          ↓
+
+10. Response is generated
+
+          ↓
+
+11. Execution returns to MdcFilter
+
+          ↓
+
+12. finally block
+
+   MDC.clear()
+
+          ↓
+
+13. Thread is clean
+The main concept to remember
+MDC.put(...)
+adds context once at the beginning of the request.
+filterChain.doFilter(...)
+allows the request to continue through Controller → Service → Repository.
+Your logging pattern:
+%X{requestId}
+%X{method}
+%X{uri}
+reads the MDC values and prints them automatically in every log.
+Finally:
+MDC.clear()
+removes the context when the request is finished.
+So the biggest advantage is: you set the request information once in the filter, but every log during that request automatically contains that information.
+

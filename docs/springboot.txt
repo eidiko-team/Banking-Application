@@ -1,4 +1,6 @@
+-------------------------------------------------------------------------------------------------------------------------
 1. Why do we use mvn package?
+-------------------------------------------------------------------------------------------------------------------------
 When you are developing a Java project, your source code is just a collection of .java files. The server (like Tomcat) cannot execute .java files directly.
 The project must go through a build process.
 mvn package tells Maven:
@@ -137,9 +139,9 @@ Application Running
 
 
 
-
-
+---------------------------------------------------------------------------------------------------------------------
 2. What is an Artifact?
+-------------------------------------------------------------------------------------------------------------------
 An artifact is the final output produced after building your project.
 Think of it as the finished product that can be deployed or shared.
 For a Java project, artifacts are usually:
@@ -501,10 +503,9 @@ Dependency changes
 Manual restart recommended
 
 
-
-
+-------------------------------------------------------------------------------------------------------------------------
 What is a Web API?
------------------------
+-------------------------------------------------------------------------------------------------------------------------
 A Web API is an API that allows two applications to communicate over a network, usually using HTTP/HTTPS.
 
 API
@@ -518,10 +519,11 @@ API accessed through the web/network
 REST API
  ↓
 Web API designed using REST principles
----------------------------------------------------------------------------------------------------------
 
+
+-------------------------------------------------------------------------------------------------------------------------
 A RESTful API
---------------------
+-------------------------------------------------------------------------------------------------------------------------
 is a web API that follows REST architectural principles and
 uses HTTP methods such as GET, POST, PUT, and DELETE to perform operations on resources.
 It is generally stateless and commonly exchanges data in JSON format.
@@ -548,3 +550,240 @@ Default exception handling by Spring Boot
 Using @ExceptionHandler annotation
 Using @ControllerAdvice for global exception handling
 Using Try-catch we can catch that and return using the response entity
+
+
+
+--------------------------------------------------------------------------------
+                                   Pdf
+---------------------------------------------------------------------------------
+
+The main concepts to remember
+Class/Method ->	Simple meaning
+PDDocument   -> The complete PDF
+PDPage       -> One page
+PDPageContentStream ->	Used to write/draw on a page
+beginText()  -> Start writing text
+setFont()    -> Set font and size
+newLineAtOffset(x, y) -> Set text position
+showText()   -> Write text
+endText()    -> Finish the text block
+save()       -> Save the PDF
+close()      ->Close and release resources
+PDFTextStripper -> used to read text from the pdf
+
+ByteArrayOutputStream = temporary in-memory container for Excel file data
+
+The browser does not understand:
+Workbook Java Object
+We need to convert it into actual file data.
+
+
+Http header may contain
+HTTP Response
+│
+├── Status → 200 OK
+├── Content-Type → application/pdf
+├── Content-Disposition → attachment; filename=account.pdf
+└── Body → actual PDF data
+
+---------------------------------------------------------------------------------------------------------------------------
+PDF PAGE → Coordinate System
+--------------------------------------------------------------------------------------------------------------------------
+A4:
+Width  ≈ 595 pt
+Height ≈ 842 pt
+
+Origin:
+(0, 0) = Bottom-left
+
+X:
+Increases → right
+
+Y:
+Increases ↑ upward
+
+72 points = 1 inch
+
+Coordinates:
+Decide WHERE something goes
+
+Dimensions:
+Decide HOW BIG something is
+
+To check the dimension
+------------------------------
+float pageWidth = PDRectangle.A4.getWidth();
+float pageHeight = PDRectangle.A4.getHeight();
+
+----------------------------------------------------------------------------------------------------------
+                                    Reflection
+----------------------------------------------------------------------------------------------------------
+Reflection means: inspecting a class at runtime
+
+With reflection, Java can examine a class while the program is running.
+
+For example:
+
+Class<?> clazz = Account.class;
+
+Now Java can inspect:
+
+Account
+
+and ask questions like:
+
+What fields does Account have?
+What methods does Account have?
+What constructors does Account have?
+What annotations does it have?
+
+
+Unknown Class
+      ↓
+Reflection
+      ↓
+Inspect its structure
+      ↓
+Fields
+Methods
+Constructors
+Annotations
+
+-----------------------------------------------------------------------------------------------------------
+                                   EXCEL FLOW
+-----------------------------------------------------------------------------------------------------------
+
+MultipartFile -> is basically Spring Boot's container for the uploaded file.
+
+InputStream → Opening the package and reading its contents
+InputStream is simply a way for Java to read the file's data continuously.
+
+Workbook → Java understands the Excel structure
+
+
+📦 MultipartFile
+    "Here is the Excel file"
+
+        ↓
+
+📖 InputStream
+    "Let's read what's inside"
+
+        ↓
+
+🧠 Workbook
+    "Now I understand this is an Excel file.
+     It has sheets, rows, and cells."
+
+
+
+                     accounts.xlsx
+                           │
+                           ▼
+                    MultipartFile
+                           │
+                           ▼
+                    InputStream
+                           │
+                           ▼
+                     XSSFWorkbook
+                           │
+                           ▼
+                        Sheet 0
+                           │
+              ┌────────────┴────────────┐
+              ▼                         ▼
+         Header Row                  Data Rows
+              │                         │
+              ▼                         ▼
+         Create Map              For every row
+              │                         │
+              ▼                         ▼
+  Account Id → 0                Create new T object
+  Account Number → 1                     │
+  Account Type → 2                       ▼
+  Balance → 3                    Loop through fields
+                                         │
+                                         ▼
+                              accountId
+                              accountNumber
+                              accountType
+                              balance
+                                         │
+                                         ▼
+                              Convert field name
+                                         │
+                                         ▼
+                                Find column from Map
+                                         │
+                                         ▼
+                                    Get Excel Cell
+                                         │
+                                         ▼
+                                   Check field type
+                                         │
+                              ┌──────────┼──────────┐
+                              ▼          ▼          ▼
+                           String       Long      Double
+                              │          │          │
+                              └──────────┼──────────┘
+                                         ▼
+                                 field.set(object)
+                                         │
+                                         ▼
+                                   data.add(object)
+                                         │
+                                         ▼
+                                     List<T>
+
+
+
+
+
+
+                     1. HSSFWorkbook(HSSF = Horrible Spreadsheet Format)
+                     Used for older Excel .xls files
+                     HSSF
+                      │
+                      ├── HSSFWorkbook
+                      ├── HSSFSheet
+                      ├── HSSFRow
+                      └── HSSFCell
+
+                     2. XSSFWorkbook(XSSF = XML Spreadsheet Format)
+                     Used for modern Excel .xlsx files
+                     XSSFWorkbook, the workbook data is generally kept in memory.
+
+                     3. SXSSFWorkbook(SXSSF = Streaming XML Spreadsheet Format)
+                     Used for large .xlsx files
+                     Understand streaming and memory efficiency by temporary storage
+
+                     4. WorkbookFactory
+                     Automatically detects whether the uploaded file is .xls or .xlsx
+                     Very useful when reading uploaded Excel files
+
+                     Workbook workbook =
+                             WorkbookFactory.create(inputStream); automatically detects the type of xl
+
+                                  The overall picture is:
+
+                                         Workbook
+                                            │
+                             ┌──────────────┼──────────────┐
+                             │              │              │
+                        HSSFWorkbook   XSSFWorkbook   SXSSFWorkbook
+                             │              │              │
+                           .xls           .xlsx        Large .xlsx
+                         (old Excel)    (modern Excel)  (streaming)
+
+                     And:
+
+
+                             WorkbookFactory
+                                    │
+                                    ▼
+                             Receives an Excel file
+                                    │
+                                    ├── .xls  → HSSFWorkbook
+                                    │
+                                    └── .xlsx → XSSFWorkbook

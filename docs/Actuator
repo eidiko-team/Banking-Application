@@ -1,0 +1,1660 @@
+# Spring Boot Actuator — Banking Application Notes
+
+## 1. What is Spring Boot Actuator?
+
+Spring Boot Actuator provides **production-ready endpoints** to monitor and manage a Spring Boot application.
+
+It helps us see:
+
+* Application health
+* Runtime metrics
+* Spring beans
+* HTTP mappings
+* Logging configuration
+* Application/build information
+
+Actuator provides these endpoints automatically. We don't have to create controllers for them.
+
+---
+
+# 2. Add Actuator Dependency
+
+For Maven:
+
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-actuator</artifactId>
+</dependency>
+```
+
+After adding the dependency, Spring Boot automatically configures Actuator.
+
+---
+
+# 3. Actuator Base Endpoint
+
+The default Actuator base path is:
+
+```text
+/actuator
+```
+
+For example:
+
+```text
+http://localhost:8080/actuator
+```
+
+This endpoint shows the Actuator endpoints that are exposed over HTTP.
+
+Example:
+
+```json
+{
+  "_links": {
+    "health": {
+      "href": "http://localhost:8080/actuator/health"
+    },
+    "metrics": {
+      "href": "http://localhost:8080/actuator/metrics"
+    }
+  }
+}
+```
+
+---
+
+# 4. Exposing Actuator Endpoints
+
+By default, not every Actuator endpoint is exposed through HTTP.
+
+We can explicitly expose the endpoints we need.
+
+```yaml
+management:
+  endpoints:
+    web:
+      exposure:
+        include:
+          - health
+          - info
+          - metrics
+          - beans
+          - mappings
+          - loggers
+```
+
+Now these endpoints are accessible through HTTP.
+
+```text
+/actuator/health
+/actuator/info
+/actuator/metrics
+/actuator/beans
+/actuator/mappings
+/actuator/loggers
+```
+
+### Expose everything
+
+We can use:
+
+```yaml
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+```
+
+But this should be avoided for a production banking application unless the endpoints are properly secured.
+
+---
+
+# 5. Enable vs Expose
+
+These two concepts are different.
+
+### Enable
+
+```yaml
+management:
+  endpoint:
+    metrics:
+      enabled: true
+```
+
+This controls whether the Actuator endpoint itself is enabled.
+
+### Expose
+
+```yaml
+management:
+  endpoints:
+    web:
+      exposure:
+        include:
+          - metrics
+```
+
+This controls whether it can be accessed through HTTP.
+
+Remember:
+
+```text
+Enabled
+   ↓
+Is the endpoint active?
+
+Exposed
+   ↓
+Can I access it through HTTP?
+```
+
+---
+
+# 6. Change the Actuator Base Path
+
+The default base path is:
+
+```text
+/actuator
+```
+
+It can be changed:
+
+```yaml
+management:
+  endpoints:
+    web:
+      base-path: /details
+```
+
+Then instead of:
+
+```text
+/actuator/health
+```
+
+we use:
+
+```text
+/details/health
+```
+
+---
+
+# 7. `/actuator/health`
+
+The health endpoint tells us the health status of the application.
+
+```text
+GET /actuator/health
+```
+
+Example:
+
+```json
+{
+  "status": "UP"
+}
+```
+
+`UP` means the health indicators currently report that the application is healthy.
+
+---
+
+# 8. Health Indicators
+
+Actuator's health system can collect information from different health indicators.
+
+Conceptually:
+
+```text
+                /actuator/health
+                       |
+              Health Indicators
+                       |
+          +------------+------------+
+          |            |            |
+       Database       Disk         Other
+       Health         Space       Checks
+          |            |            |
+          +------------+------------+
+                       |
+                       v
+                Overall Status
+```
+
+For a banking application using MySQL, Actuator can automatically detect the application's `DataSource` and provide database health information.
+
+---
+
+# 9. Show Health Details
+
+By default, health may simply return:
+
+```json
+{
+  "status": "UP"
+}
+```
+
+For learning, we can enable details:
+
+```yaml
+management:
+  endpoint:
+    health:
+      show-details: always
+```
+
+The response can then contain:
+
+```json
+{
+  "status": "UP",
+  "components": {
+    "db": {
+      "status": "UP"
+    },
+    "diskSpace": {
+      "status": "UP"
+    },
+    "ping": {
+      "status": "UP"
+    }
+  }
+}
+```
+
+The exact response depends on the application and Spring Boot version.
+
+### Production
+
+For a production application, don't expose detailed health information unnecessarily.
+
+A safer configuration is:
+
+```yaml
+management:
+  endpoint:
+    health:
+      show-details: when_authorized
+```
+
+Spring Security can then control who can see the details.
+
+---
+
+# 10. Database Health
+
+Because the banking application uses MySQL, Actuator can check the database.
+
+Conceptually:
+
+```text
+Banking Application
+        |
+        v
+     DataSource
+        |
+        v
+       MySQL
+        |
+        v
+Database Health Indicator
+        |
+        v
+/actuator/health
+```
+
+If MySQL is working:
+
+```json
+{
+  "status": "UP"
+}
+```
+
+If MySQL becomes unavailable, the database health indicator can report:
+
+```json
+{
+  "status": "DOWN"
+}
+```
+
+The overall health can therefore become `DOWN`.
+
+---
+
+# 11. `/actuator/metrics`
+
+Metrics tell us about the application's runtime behavior.
+
+```text
+GET /actuator/metrics
+```
+
+This returns available metric names.
+
+Examples:
+
+```text
+http.server.requests
+jvm.memory.used
+jvm.threads.live
+process.cpu.usage
+system.cpu.usage
+disk.free
+disk.total
+```
+
+---
+
+# 12. Individual Metrics
+
+We can request a specific metric.
+
+Example:
+
+```text
+GET /actuator/metrics/http.server.requests
+```
+
+This provides information about HTTP requests.
+
+Another example:
+
+```text
+GET /actuator/metrics/jvm.memory.used
+```
+
+This provides JVM memory usage.
+
+Other examples:
+
+```text
+GET /actuator/metrics/jvm.threads.live
+
+GET /actuator/metrics/process.cpu.usage
+
+GET /actuator/metrics/system.cpu.usage
+```
+
+---
+
+# 13. `http.server.requests`
+
+This is one of the most useful metrics for a REST application.
+
+Suppose our banking application receives:
+
+```text
+GET /accounts/1
+GET /accounts/1
+GET /accounts/1
+```
+
+Actuator records HTTP request metrics.
+
+For example:
+
+```text
+http.server.requests
+        |
+        +---- method
+        +---- URI
+        +---- status
+        +---- outcome
+        +---- exception
+        +---- count
+```
+
+The `COUNT` measurement tells us how many requests have been recorded for the selected metric/tag combination.
+
+---
+
+# 14. Metrics and Tags
+
+Metrics can have tags/dimensions.
+
+For example:
+
+```text
+method = GET
+status = 200
+```
+
+or:
+
+```text
+method = POST
+status = 201
+```
+
+This allows us to analyze requests in more detail.
+
+Conceptually:
+
+```text
+HTTP Requests
+      |
+      v
+http.server.requests
+      |
+      +---- GET
+      +---- POST
+      |
+      +---- 200
+      +---- 404
+      +---- 500
+```
+
+---
+
+# 15. `/actuator/beans`
+
+The beans endpoint shows the Spring beans registered in the ApplicationContext.
+
+```text
+GET /actuator/beans
+```
+
+For example, our banking application may contain:
+
+```text
+AccountController
+CustomerController
+AccountService
+CustomerService
+AccountRepo
+CustomerRepo
+DataSource
+EntityManager
+```
+
+Conceptually:
+
+```text
+Spring ApplicationContext
+        |
+        +---- Controller beans
+        +---- Service beans
+        +---- Repository beans
+        +---- DataSource
+        +---- Other beans
+```
+
+The endpoint helps us inspect what Spring has created and manages.
+
+---
+
+# 16. What Information Does `/beans` Show?
+
+Depending on the Spring Boot version, it can show information such as:
+
+* Bean name
+* Bean type
+* Scope
+* Dependencies
+* Resource information
+
+For example:
+
+```json
+{
+  "accountController": {
+    "type": "com.example.cruds.controllers.AccountController",
+    "scope": "singleton",
+    "dependencies": [
+      "accountService"
+    ]
+  }
+}
+```
+
+The exact structure varies.
+
+---
+
+# 17. `/actuator/mappings`
+
+The mappings endpoint shows HTTP mappings registered by Spring MVC.
+
+```text
+GET /actuator/mappings
+```
+
+Suppose we have:
+
+```java
+@RestController
+@RequestMapping("/accounts")
+public class AccountController {
+
+    @GetMapping("/{id}")
+    public AccountResponseDTO getAccount(...) {
+        ...
+    }
+
+    @PostMapping
+    public AccountResponseDTO createAccount(...) {
+        ...
+    }
+}
+```
+
+Spring registers mappings such as:
+
+```text
+GET  /accounts/{id}
+POST /accounts
+```
+
+Actuator lets us inspect those mappings.
+
+---
+
+# 18. Why `/mappings` Is Useful
+
+Suppose we call:
+
+```text
+GET /accounts/10
+```
+
+and receive:
+
+```text
+404 Not Found
+```
+
+We can inspect:
+
+```text
+/actuator/mappings
+```
+
+and check whether Spring registered:
+
+```text
+GET /accounts/{id}
+```
+
+Maybe the actual mapping is:
+
+```text
+GET /api/accounts/{id}
+```
+
+This makes `/mappings` useful for debugging routing problems.
+
+---
+
+# 19. `/actuator/loggers`
+
+The loggers endpoint allows us to inspect logger configuration.
+
+```text
+GET /actuator/loggers
+```
+
+It can also inspect a specific logger:
+
+```text
+GET /actuator/loggers/com.example.cruds.services.AccountService
+```
+
+Example:
+
+```json
+{
+  "configuredLevel": "DEBUG",
+  "effectiveLevel": "DEBUG"
+}
+```
+
+---
+
+# 20. Configured Level vs Effective Level
+
+Suppose we have:
+
+```yaml
+logging:
+  level:
+    com.example.cruds: DEBUG
+```
+
+Then:
+
+```text
+com.example.cruds
+        |
+        v
+      DEBUG
+        |
+        +---- services
+        +---- controllers
+        +---- repositories
+```
+
+A child logger can inherit the parent's logging level.
+
+### Configured level
+
+The level explicitly configured for that logger.
+
+### Effective level
+
+The level that actually applies to the logger after inheritance is considered.
+
+---
+
+# 21. Change Logging Level at Runtime
+
+One of the useful features of `/loggers` is that we can change a logger's level without restarting the application.
+
+Example:
+
+```text
+POST /actuator/loggers/com.example.cruds.services.AccountService
+```
+
+Request body:
+
+```json
+{
+  "configuredLevel": "DEBUG"
+}
+```
+
+Now the logger uses:
+
+```text
+DEBUG
+```
+
+without restarting the application.
+
+---
+
+# 22. Logging Level Example
+
+Suppose our code contains:
+
+```java
+log.trace("Entering method");
+log.debug("Account ID: {}", id);
+log.info("Getting account");
+log.warn("Account not found");
+log.error("Database error");
+```
+
+If the level is:
+
+```text
+INFO
+```
+
+then:
+
+```text
+TRACE  ❌
+DEBUG  ❌
+INFO   ✅
+WARN   ✅
+ERROR  ✅
+```
+
+If we change it to:
+
+```text
+DEBUG
+```
+
+then:
+
+```text
+TRACE  ❌
+DEBUG  ✅
+INFO   ✅
+WARN   ✅
+ERROR  ✅
+```
+
+If we change it to:
+
+```text
+TRACE
+```
+
+everything is enabled.
+
+---
+
+# 23. Reset Runtime Logger Configuration
+
+We can remove the runtime override by sending:
+
+```text
+POST /actuator/loggers/com.example.cruds.services.AccountService
+```
+
+with:
+
+```json
+{
+  "configuredLevel": null
+}
+```
+
+The logger can then inherit its level from its parent configuration again.
+
+---
+
+# 24. Actuator and Logging
+
+Actuator does not replace SLF4J or Logback.
+
+The normal logging flow is:
+
+```text
+Application Code
+       |
+       v
+     SLF4J
+       |
+       v
+    Logback
+       |
+       v
+Console / File
+```
+
+Actuator provides management functionality alongside this:
+
+```text
+                    Application
+                        |
+             +----------+----------+
+             |                     |
+          Logging                Actuator
+             |                     |
+           SLF4J                 /loggers
+             |                     |
+          Logback             Runtime control
+             |
+       Console / File
+```
+
+---
+
+# 25. `/actuator/info`
+
+The info endpoint provides application/build information.
+
+```text
+GET /actuator/info
+```
+
+We can configure our own application information.
+
+Example:
+
+```yaml
+info:
+  app:
+    name: Banking Application
+    description: Banking management system
+    version: 1.0.0
+```
+
+Then:
+
+```text
+GET /actuator/info
+```
+
+can return:
+
+```json
+{
+  "app": {
+    "name": "Banking Application",
+    "description": "Banking management system",
+    "version": "1.0.0"
+  }
+}
+```
+
+---
+
+# 26. `spring.application.name`
+
+We can also define:
+
+```yaml
+spring:
+  application:
+    name: banking-application
+```
+
+This gives the Spring application a name.
+
+It is different from:
+
+```yaml
+info:
+  app:
+    name: Banking Application
+```
+
+The first identifies the application within the Spring ecosystem; the second is information we choose to expose through `/actuator/info`.
+
+---
+
+# 27. Build Information
+
+Spring Boot can expose Maven build information.
+
+The Maven plugin can be configured with:
+
+```xml
+<plugin>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-maven-plugin</artifactId>
+    <executions>
+        <execution>
+            <goals>
+                <goal>build-info</goal>
+            </goals>
+        </execution>
+    </executions>
+</plugin>
+```
+
+After:
+
+```text
+mvn clean package
+```
+
+build information can be available through:
+
+```text
+/actuator/info
+```
+
+For example:
+
+```json
+{
+  "build": {
+    "artifact": "cruds",
+    "name": "cruds",
+    "version": "0.0.1-SNAPSHOT",
+    "group": "com.example"
+  }
+}
+```
+
+---
+
+# 28. Git Information
+
+Actuator can also expose Git-related information such as:
+
+```text
+branch
+commit ID
+commit time
+```
+
+This can help identify exactly which source-code version is deployed.
+
+For example:
+
+```text
+Production
+    |
+    v
+/actuator/info
+    |
+    v
+Commit: abc123
+```
+
+This is useful when troubleshooting deployed applications.
+
+---
+
+# 29. Security Considerations
+
+Actuator endpoints can expose internal application information.
+
+Examples include:
+
+```text
+/actuator/beans
+/actuator/mappings
+/actuator/loggers
+```
+
+Therefore, don't expose every Actuator endpoint publicly.
+
+Avoid blindly using:
+
+```yaml
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+```
+
+in a production banking application.
+
+Prefer exposing only what is required:
+
+```yaml
+management:
+  endpoints:
+    web:
+      exposure:
+        include:
+          - health
+          - info
+          - metrics
+```
+
+Later, Spring Security can be used to protect sensitive management endpoints.
+
+---
+
+# 30. Overall Actuator Picture
+
+The main endpoints we covered:
+
+```text
+                         ACTUATOR
+                            |
+       +--------------------+--------------------+
+       |                    |                    |
+    /health              /metrics              /info
+       |                    |                    |
+  Is application       Runtime data        App/build info
+    healthy?
+       |
+       |
+    /beans
+       |
+  Spring beans
+
+    /mappings
+       |
+  HTTP mappings
+
+    /loggers
+       |
+  Logging configuration
+```
+
+---
+
+# 31. Important Endpoints to Remember
+
+| Endpoint                   | Purpose                          |
+| -------------------------- | -------------------------------- |
+| `/actuator`                | Shows exposed Actuator endpoints |
+| `/actuator/health`         | Application health               |
+| `/actuator/metrics`        | Available metrics                |
+| `/actuator/metrics/{name}` | Specific metric                  |
+| `/actuator/beans`          | Spring beans                     |
+| `/actuator/mappings`       | Spring MVC mappings              |
+| `/actuator/loggers`        | Logger configuration             |
+| `/actuator/info`           | Application/build information    |
+
+---
+
+# 32. Banking Application Configuration So Far
+
+A good learning configuration for our banking application is:
+
+```yaml
+spring:
+  application:
+    name: banking-application
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include:
+          - health
+          - info
+          - metrics
+          - beans
+          - mappings
+          - loggers
+
+  endpoint:
+    health:
+      show-details: always
+
+info:
+  app:
+    name: Banking Application
+    description: Banking management system
+    version: 1.0.0
+```
+
+For production, we will later tighten this configuration and secure the Actuator endpoints.
+
+---
+
+# Spring Boot Actuator — Additional Endpoints
+
+## 1. `/actuator/caches`
+
+### Purpose
+
+The `caches` endpoint provides information about caches configured in the application.
+
+```text
+GET /actuator/caches
+```
+
+### What is caching?
+
+Without caching:
+
+```text
+Request
+   ↓
+Controller
+   ↓
+Service
+   ↓
+Repository
+   ↓
+Database
+```
+
+With caching:
+
+```text
+Request
+   ↓
+Service
+   ↓
+Cache
+  ↙ ↘
+Hit   Miss
+ ↓      ↓
+Response Database
+          ↓
+        Cache
+```
+
+If data is already available in the cache, the application can avoid another database query.
+
+### Important point
+
+Actuator **does not create the cache**.
+
+It only provides information about caches that already exist in the application.
+
+Conceptually:
+
+```text
+Application
+    |
+    +---- Cache Manager
+    |        |
+    |        +---- customers
+    |        +---- accounts
+    |
+    +---- Actuator
+             |
+             v
+        /actuator/caches
+```
+
+### In our banking application
+
+Currently, if we haven't configured Spring Cache, there may be no useful cache information.
+
+We don't need to implement caching just to learn Actuator.
+
+---
+
+# 2. `/actuator/conditions`
+
+### Purpose
+
+The `conditions` endpoint shows information about **Spring Boot auto-configuration decisions**.
+
+```text
+GET /actuator/conditions
+```
+
+### Why does Spring Boot need conditions?
+
+Spring Boot automatically configures many things.
+
+For example, if JPA and the required dependencies are available, Spring Boot can configure:
+
+```text
+DataSource
+EntityManager
+Hibernate
+Transaction Manager
+Repositories
+```
+
+But Spring Boot doesn't configure everything blindly.
+
+It checks conditions such as:
+
+```text
+Is a class available?
+Is a property configured?
+Does a bean already exist?
+Is a dependency present?
+```
+
+### Example
+
+```java
+@ConditionalOnClass(DataSource.class)
+```
+
+This means approximately:
+
+```text
+Is DataSource available?
+       |
+    +--+--+
+    |     |
+   YES    NO
+    |     |
+Configure Don't configure
+```
+
+### What does `/conditions` show?
+
+It provides information about auto-configurations that:
+
+* Matched
+* Did not match
+* Were skipped because a condition wasn't satisfied
+
+### `/beans` vs `/conditions`
+
+This distinction is important:
+
+```text
+/actuator/beans
+        ↓
+"What beans exist?"
+
+/actuator/conditions
+        ↓
+"Why did Spring Boot configure or not configure something?"
+```
+
+### When is it useful?
+
+Mainly for troubleshooting.
+
+For example:
+
+> "Why didn't Spring Boot automatically configure my DataSource?"
+
+You can inspect:
+
+```text
+/actuator/conditions
+```
+
+to investigate the auto-configuration decision.
+
+---
+
+# 3. `/actuator/httpexchanges`
+
+### Important note
+
+Older Spring Boot documentation/articles may refer to:
+
+```text
+/actuator/httptrace
+```
+
+Modern Spring Boot uses:
+
+```text
+/actuator/httpexchanges
+```
+
+for HTTP exchange information.
+
+### Purpose
+
+It provides information about HTTP request/response exchanges handled by the application.
+
+```text
+GET /actuator/httpexchanges
+```
+
+Conceptually:
+
+```text
+HTTP Request
+    |
+    +---- Method
+    +---- URI
+    +---- Headers
+    |
+    v
+Application
+    |
+    v
+HTTP Response
+    |
+    +---- Status
+    +---- Headers
+```
+
+### Example
+
+Suppose we call:
+
+```text
+GET /accounts/10
+```
+
+The exchange information can contain details about that request and its response.
+
+The exact response structure depends on your Spring Boot version and configuration.
+
+### `httpexchanges` vs `metrics`
+
+This distinction is important.
+
+```text
+/actuator/metrics/http.server.requests
+        ↓
+Aggregated measurements
+        ↓
+"How many requests happened?"
+```
+
+Whereas:
+
+```text
+/actuator/httpexchanges
+        ↓
+HTTP exchange information
+        ↓
+"What requests/responses were recorded?"
+```
+
+### HTTP exchanges vs MDC
+
+HTTP exchange information is not the same as your MDC logging.
+
+Your MDC system:
+
+```text
+HTTP Request
+     ↓
+MDC Filter
+     ↓
+requestId
+     ↓
+SLF4J
+     ↓
+Logback
+     ↓
+Log file
+```
+
+Actuator:
+
+```text
+HTTP Request
+     ↓
+Actuator HTTP exchange recording
+     ↓
+/actuator/httpexchanges
+```
+
+They solve different problems.
+
+### Security consideration
+
+Be careful when exposing request information because requests can contain sensitive data.
+
+---
+
+# 4. `/actuator/threaddump`
+
+### Purpose
+
+The `threaddump` endpoint provides a snapshot of the threads running inside the JVM.
+
+```text
+GET /actuator/threaddump
+```
+
+### What is a thread?
+
+The JVM uses threads to execute application work.
+
+For example:
+
+```text
+Spring Boot Application
+        |
+       JVM
+        |
+   +----+----+----+
+   |    |    |    |
+Thread Thread Thread ...
+```
+
+HTTP requests are processed using server/request threads.
+
+### What is a thread dump?
+
+A thread dump is a snapshot showing information about the JVM's current threads.
+
+It can show:
+
+* Thread name
+* Thread ID
+* Thread state
+* Stack trace
+* What the thread is waiting for
+* Whether it is blocked
+
+Conceptually:
+
+```text
+JVM
+ |
+ +---- Thread A → RUNNABLE
+ |
+ +---- Thread B → WAITING
+ |
+ +---- Thread C → BLOCKED
+ |
+ +---- Thread D → TIMED_WAITING
+```
+
+### Common thread states
+
+#### RUNNABLE
+
+The thread is able to execute or is currently executing.
+
+#### WAITING
+
+The thread is waiting indefinitely for another event/thread.
+
+#### TIMED_WAITING
+
+The thread is waiting for a specified period.
+
+Example:
+
+```java
+Thread.sleep(5000);
+```
+
+#### BLOCKED
+
+The thread is waiting to acquire a lock/monitor.
+
+```text
+Thread A
+   |
+ holds lock
+   |
+   v
+Thread B
+   |
+   v
+BLOCKED
+```
+
+### Why is it useful?
+
+Suppose the banking application becomes very slow:
+
+```text
+GET /accounts/10
+        ↓
+   Takes 30 seconds
+```
+
+A thread dump can help investigate whether threads are:
+
+* Blocked
+* Waiting
+* Stuck in a particular operation
+* Contending for locks
+
+### Thread metrics vs thread dump
+
+We already learned:
+
+```text
+/actuator/metrics/jvm.threads.live
+```
+
+This answers:
+
+> How many live threads are there?
+
+Whereas:
+
+```text
+/actuator/threaddump
+```
+
+answers:
+
+> What are the individual threads doing?
+
+---
+
+# 5. `/actuator/sessions`
+
+### Purpose
+
+The `sessions` endpoint provides session-related management when the application uses **Spring Session**.
+
+```text
+GET /actuator/sessions
+```
+
+### What is a session?
+
+HTTP is stateless.
+
+A session allows the server to associate multiple requests with the same user/session.
+
+Conceptually:
+
+```text
+User
+ ↓
+Login
+ ↓
+Session created
+ ↓
+Session ID
+ ↓
+Subsequent requests
+ ↓
+Server identifies session
+```
+
+### Spring Session
+
+Spring Session provides infrastructure for managing sessions.
+
+Sessions can be stored using supported stores such as:
+
+```text
+Redis
+JDBC
+```
+
+This can be useful when running multiple application instances:
+
+```text
+             Load Balancer
+                  |
+          +-------+-------+
+          |               |
+      App Instance 1  App Instance 2
+          |               |
+          +-------+-------+
+                  |
+                Redis
+                  |
+               Sessions
+```
+
+Both application instances can access the shared session store.
+
+### Does our banking application need it?
+
+Currently, **no**.
+
+Our banking application is primarily a REST API application and we're moving toward Spring Security.
+
+If we use a stateless token-based approach such as JWT, we don't need a server-side HTTP session for each request.
+
+Conceptually:
+
+```text
+Session-based
+
+Client
+  ↓
+Session ID
+  ↓
+Server Session
+```
+
+versus:
+
+```text
+Token-based
+
+Client
+  ↓
+JWT
+  ↓
+Server validates token
+```
+
+We'll learn this properly during Spring Security.
+
+---
+
+# Summary
+
+These were the final five endpoints we covered:
+
+| Endpoint                  | Purpose                                    | Relevant to our banking app now? |
+| ------------------------- | ------------------------------------------ | -------------------------------- |
+| `/actuator/caches`        | Shows configured caches                    | Not currently                    |
+| `/actuator/conditions`    | Shows auto-configuration decisions         | Useful for troubleshooting       |
+| `/actuator/httpexchanges` | HTTP request/response exchange information | Useful                           |
+| `/actuator/threaddump`    | JVM thread snapshot                        | Useful for troubleshooting       |
+| `/actuator/sessions`      | Spring Session management                  | Not currently                    |
+
+## Complete Actuator Endpoint List We Covered
+
+```text
+/actuator
+/actuator/health
+/actuator/info
+/actuator/metrics
+/actuator/beans
+/actuator/mappings
+/actuator/loggers
+/actuator/caches
+/actuator/conditions
+/actuator/httpexchanges
+/actuator/threaddump
+/actuator/sessions
+```
+
+We have now covered **all 9 endpoints from the original commonly-used list**, while also correcting the older `httptrace` terminology to the modern `httpexchanges` endpoint.
+
+
+# 33. What We Have Learned
+
+So far we have covered:
+
+1. What Spring Boot Actuator is
+2. Adding Actuator dependency
+3. `/actuator`
+4. Endpoint exposure
+5. Enabled vs exposed
+6. Changing the base path
+7. `/health`
+8. Health indicators
+9. Database health
+10. `/metrics`
+11. HTTP request metrics
+12. Metric tags
+13. JVM metrics
+14. `/beans`
+15. `/mappings`
+16. `/loggers`
+17. Configured vs effective logging level
+18. Changing logging levels at runtime
+19. `/info`
+20. Application information
+21. Build information
+22. Git information
+23. Actuator security considerations
+
+## Next Topics
+
+The next practical step is to move from **using built-in Actuator features** to **understanding and implementing custom Actuator functionality**.
+
+The most useful next topic for our banking application is:
+
+```text
+Custom Health Indicator
+        ↓
+Custom Banking Health Check
+        ↓
+/actuator/health
+```
+
+After that, we can move toward:
+
+```text
+Actuator
+   ↓
+Prometheus
+   ↓
+Grafana
+   ↓
+Monitoring Dashboard
+```
+
+and finally secure the Actuator endpoints with Spring Security.

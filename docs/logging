@@ -1,0 +1,1519 @@
+%d          → Date
+%level      → Log level
+%X{key}     → MDC value
+%logger     → Logger name(Class name)
+%msg        → Log message
+%n          → New line
+%clr()      → for color(ANSI) NOT SUPPORTED FOR FILE LOGS
+
+Error   -> It is used for non-recoverable error.
+Warning -> It is used for recoverable error.
+Info    -> It is used for audit purpose.
+Debug   -> It is used for investigation.
+Trace   -> It is used for detailed investigation.
+
+Simple difference
+1. SLF4J = API / Interface
+
+SLF4J gives you the methods you use in your Java code:
+
+log.info("Fetching account");
+log.debug("Account ID: {}", id);
+log.error("Something went wrong");
+
+SLF4J basically says:
+
+"Here is a standard way to write logs."
+
+It does not necessarily decide where or how the log is printed.
+
+2. Logback = Logging implementation
+
+Logback actually does the work of:
+
+Printing logs to the console
+Writing logs to a file
+Applying log levels
+Formatting the output
+Rolling log files
+
+So Logback says:
+
+"Give me the log message, and I will process it."
+
+Spring Boot Logging — Roadmap
+We'll learn in this order:
+What is logging?
+Why use logging instead of System.out.println()?
+Log levels
+TRACE
+DEBUG
+INFO
+WARN
+ERROR
+SLF4J
+Logger and LoggerFactory
+Logging in a Spring Boot application
+application.properties logging configuration
+Logging to a file
+Log patterns
+Different log levels for different packages
+Exception logging
+Practical logging in Controller → Service → Repository
+Logback
+Production-level logging practices
+We'll keep the initial explanations simple and only cover what you need, and go deeper whenever required.
+
+
+
+
+
+
+
+
+
+
+1. What is Logging?
+Logging means recording information about what is happening inside our application.
+For example, when a request comes to our Spring Boot application:
+POST /customers
+we may want to know:
+Request received
+Customer creation started
+Customer saved successfully
+Customer ID = 101
+Instead of doing:
+System.out.println("Customer creation started");
+we use a logger:
+log.info("Customer creation started");
+So simply:
+Logging = recording application events/information while the application is running.
+
+2. Why not System.out.println()?
+You have probably used:
+System.out.println("Customer created");
+It works, but it is not suitable for real applications.
+With logging, we can control:
+what information gets logged
+how important the message is
+where logs are stored
+log format
+which package should produce logs
+whether DEBUG logs should be enabled or disabled
+For example:
+log.info("Customer created");
+log.warn("Customer email already exists");
+log.error("Failed to save customer");
+Each message has a different severity.
+
+
+
+
+
+
+
+
+
+
+3. Log Levels
+The most important concept initially is log levels.
+Spring Boot commonly uses:
+TRACE
+DEBUG
+INFO
+WARN
+ERROR
+Think of them as levels of importance:
+TRACE   → very detailed
+DEBUG   → debugging information
+INFO    → normal application information
+WARN    → something unusual
+ERROR   → something went wrong
+For example:
+log.trace("Entering method");
+
+log.debug("Customer ID = {}", customerId);
+
+log.info("Customer created successfully");
+
+log.warn("Customer email already exists");
+
+log.error("Unable to save customer");
+Simple understanding
+Level
+Meaning
+TRACE
+Very detailed information
+DEBUG
+Developer/debugging information
+INFO
+Normal application flow
+WARN
+Something unexpected but application can continue
+ERROR
+Something failed
+
+For now, INFO, DEBUG, WARN and ERROR are the most important ones.
+
+4. One important thing to understand
+Suppose your code contains:
+log.debug("Customer ID = {}", customerId);
+but your application is configured to show only:
+INFO
+WARN
+ERROR
+then the DEBUG message will not appear.
+That's why log levels are important.
+We'll learn exactly how this works with application.properties next.
+Next topic
+SLF4J → Logger → LoggerFactory → how to create a logger in Spring Boot.
+
+4. SLF4J, Logger and LoggerFactory
+Before using logging in Spring Boot, understand these three terms.
+1. What is SLF4J?
+SLF4J stands for:
+Simple Logging Facade for Java
+It provides a common way to write logging code.
+For example:
+logger.info("Customer created successfully");
+SLF4J is like an interface/facade between your application and the actual logging implementation.
+Your Application
+       ↓
+     SLF4J
+       ↓
+ Logging Implementation
+       ↓
+    Logback
+In Spring Boot, the default logging implementation is generally Logback.
+For now, remember:
+SLF4J gives us the API to write logs, and Logback actually processes those logs.
+
+2. What is a Logger?
+A Logger is the object we use to create log messages.
+Example:
+logger.info("Application started");
+
+logger.debug("Customer ID: {}", id);
+
+logger.error("Something went wrong");
+So:
+Logger = the object used to write log messages.
+
+3. What is LoggerFactory?
+We usually create a logger like this:
+private static final Logger logger =
+        LoggerFactory.getLogger(CustomerService.class);
+Here:
+LoggerFactory.getLogger(CustomerService.class)
+creates or provides a Logger for the CustomerService class.
+Complete example:
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public class CustomerService {
+
+    private static final Logger logger =
+            LoggerFactory.getLogger(CustomerService.class);
+
+    public void createCustomer() {
+
+        logger.info("Customer creation started");
+
+        // business logic
+
+        logger.info("Customer created successfully");
+    }
+}
+
+4. Why do we pass CustomerService.class?
+LoggerFactory.getLogger(CustomerService.class);
+Because the logger knows which class generated the log.
+For example, your console might show:
+INFO  CustomerService - Customer creation started
+If another class logs something:
+LoggerFactory.getLogger(CustomerController.class);
+then:
+INFO  CustomerController - Request received
+This helps us identify where the log came from.
+
+Simple flow
+CustomerService
+      ↓
+logger.info("Customer created")
+      ↓
+SLF4J
+      ↓
+Logback
+      ↓
+Console / File
+Important interview-level understanding
+SLF4J is a logging facade/API, while Logback is the actual logging implementation. We use Logger to write log messages and LoggerFactory to obtain a Logger instance.
+
+Next topic
+Now we'll see how logging works directly inside a Spring Boot application, including the easiest way to create a logger using:
+private static final Logger logger
+and then using Lombok's @Slf4j to avoid writing that code manually.
+
+
+5. Using Logging in a Spring Boot Application
+There are two common ways to create and use a logger.
+
+Method 1: Using Logger and LoggerFactory
+Example in a Spring Boot service:
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+
+@Service
+public class CustomerService {
+
+    private static final Logger logger =
+            LoggerFactory.getLogger(CustomerService.class);
+
+    public void createCustomer() {
+
+        logger.info("Customer creation started");
+
+        // business logic
+
+        logger.info("Customer created successfully");
+    }
+}
+Here:
+private static final Logger logger =
+        LoggerFactory.getLogger(CustomerService.class);
+creates a logger for the CustomerService class.
+Then we can use:
+logger.info("Message");
+
+logger.debug("Message");
+
+logger.warn("Message");
+
+logger.error("Message");
+
+Method 2: Using Lombok @Slf4j
+Instead of writing:
+private static final Logger logger =
+        LoggerFactory.getLogger(CustomerService.class);
+Lombok can generate it for us.
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
+@Slf4j
+@Service
+public class CustomerService {
+
+    public void createCustomer() {
+
+        log.info("Customer creation started");
+
+        // business logic
+
+        log.info("Customer created successfully");
+    }
+}
+The annotation:
+@Slf4j
+automatically creates a logger named:
+log
+So we can directly write:
+log.info("Customer created");
+
+log.debug("Debugging customer");
+
+log.warn("Something unusual happened");
+
+log.error("Customer creation failed");
+
+What does Lombok generate internally?
+Conceptually, this:
+@Slf4j
+public class CustomerService {
+}
+is similar to writing:
+private static final Logger log =
+        LoggerFactory.getLogger(CustomerService.class);
+So:
+@Slf4j saves us from manually creating the Logger object.
+
+Which one should you use?
+Without Lombok
+private static final Logger logger =
+        LoggerFactory.getLogger(CustomerService.class);
+Use:
+logger.info("Customer created");
+With Lombok
+@Slf4j
+Use:
+log.info("Customer created");
+In modern Spring Boot projects, @Slf4j is commonly used because it reduces boilerplate.
+
+One important point
+You can use logging in any layer:
+Controller
+    ↓
+Service
+    ↓
+Repository
+For example:
+@Slf4j
+@RestController
+public class CustomerController {
+
+    @PostMapping("/customers")
+    public String createCustomer() {
+
+        log.info("Received request to create customer");
+
+        return "Customer created";
+    }
+}
+The console may show something like:
+INFO  CustomerController - Received request to create customer
+
+Simple summary
+SLF4J
+  ↓
+Logger
+  ↓
+log.info()
+log.debug()
+log.warn()
+log.error()
+  ↓
+Logback
+  ↓
+Console / File
+Next topic
+How Spring Boot decides which log messages to display using log levels and application.properties.
+This is where you'll understand why sometimes:
+log.debug("Hello");
+does not appear in the console.
+6. Configuring Log Levels in Spring Boot
+Now let's understand why some logs appear and some do not.
+We have:
+log.trace("Trace message");
+log.debug("Debug message");
+log.info("Info message");
+log.warn("Warning message");
+log.error("Error message");
+The log levels are:
+TRACE
+DEBUG
+INFO
+WARN
+ERROR
+They go from lowest level to highest severity:
+------------------------------------------------
+TRACE → DEBUG → INFO → WARN → ERROR
+------------------------------------------
+
+Default behavior in Spring Boot
+By default, Spring Boot generally shows logs from:
+INFO
+WARN
+ERROR
+So if you write:
+@Slf4j
+@Service
+public class CustomerService {
+
+    public void createCustomer() {
+
+        log.trace("TRACE message");
+
+        log.debug("DEBUG message");
+
+        log.info("INFO message");
+
+        log.warn("WARN message");
+
+        log.error("ERROR message");
+    }
+}
+You will normally see:
+INFO  - INFO message
+WARN  - WARN message
+ERROR - ERROR message
+But not:
+TRACE
+DEBUG
+Why?
+Because the default log level is typically:
+INFO
+
+How does the level work?
+Suppose the configured level is:
+
+logging.level.root=INFO
+
+Then Spring Boot displays:
+INFO
+WARN
+ERROR
+But hides:
+DEBUG
+TRACE
+Visual representation
+TRACE   ❌
+DEBUG   ❌
+INFO    ✅
+WARN    ✅
+ERROR   ✅
+
+Enable DEBUG logs
+Open:
+application.properties
+Add:
+
+logging.level.root=DEBUG
+
+Now Spring Boot can display:
+DEBUG
+INFO
+WARN
+ERROR
+TRACE   ❌
+DEBUG   ✅
+INFO    ✅
+WARN    ✅
+ERROR   ✅
+
+Enable TRACE logs
+
+logging.level.root=TRACE
+
+Now everything is displayed:
+TRACE   ✅
+DEBUG   ✅
+INFO    ✅
+WARN    ✅
+ERROR   ✅
+
+Set logging level for your own package
+Usually, you don't want to enable DEBUG for the entire Spring Boot application.
+For example, suppose your package is:
+com.example.cruds
+You can write:
+logging.level.com.example.cruds=DEBUG
+Now DEBUG logs are enabled only for your application package.
+Example:
+package com.example.cruds.service;
+
+@Slf4j
+@Service
+public class CustomerService {
+
+    public void getCustomer(Long id) {
+
+        log.debug("Fetching customer with ID: {}", id);
+
+        log.info("Customer fetched successfully");
+    }
+}
+You may see:
+DEBUG ... CustomerService - Fetching customer with ID: 10
+INFO  ... CustomerService - Customer fetched successfully
+
+Why configure packages separately?
+Suppose you do this:
+logging.level.root=DEBUG
+Then you may get a huge amount of logs from Spring itself:
+Spring
+Hibernate
+Tomcat
+Security
+JPA
+Your console can become messy.
+Instead, you can keep the root level at INFO:
+logging.level.root=INFO
+And enable DEBUG only for your code:
+logging.level.com.example.cruds=DEBUG
+So:
+Spring Boot logs     → INFO
+Your application     → DEBUG
+This is the commonly useful approach.
+
+Example configuration
+logging.level.root=INFO
+
+logging.level.com.example.cruds=DEBUG
+Then in your service:
+@Slf4j
+@Service
+public class CustomerService {
+
+    public void createCustomer(Customer customer) {
+
+        log.debug("Received customer: {}", customer);
+
+        log.info("Creating customer");
+
+        try {
+
+            // save customer
+
+            log.info("Customer created successfully");
+
+        } catch (Exception e) {
+
+            log.error("Failed to create customer", e);
+        }
+    }
+}
+Notice this:
+log.debug("Received customer: {}", customer);
+We use {} instead of:
+log.debug("Received customer: " + customer);
+We'll discuss why {} is preferred shortly.
+Important takeaway
+The configured log level acts like a minimum level to display.
+For example:
+logging.level.com.example.cruds=WARN
+Then:
+TRACE   ❌
+DEBUG   ❌
+INFO    ❌
+WARN    ✅
+ERROR   ✅
+
+Next topic
+Logging variables and objects using {} placeholders, and why this is better than string concatenation:
+log.info("Customer ID: {}", customerId);
+instead of:
+log.info("Customer ID: " + customerId);
+
+7. Logging Variables Using {}
+Suppose you want to log a customer ID.
+You might write:
+log.info("Customer ID: " + customerId);
+But with SLF4J, the preferred way is:
+log.info("Customer ID: {}", customerId);
+Here:
+{}
+is a placeholder.
+The value of customerId is inserted into {}.
+For example:
+Long customerId = 10L;
+
+log.info("Fetching customer with ID: {}", customerId);
+Output:
+Fetching customer with ID: 10
+
+Multiple variables
+You can use multiple placeholders:
+log.info(
+    "Creating customer with name: {} and email: {}",
+    customer.getName(),
+    customer.getEmail()
+);
+Output:
+Creating customer with name: Ram and email: ram@gmail.com
+Each value is inserted in order:
+First {}  → customer.getName()
+
+Second {} → customer.getEmail()
+
+Why is {} better than string concatenation?
+String concatenation
+log.debug("Customer ID: " + customerId);
+Even if the DEBUG log level is disabled, Java may still construct the string.
+Placeholder
+log.debug("Customer ID: {}", customerId);
+The logging framework can avoid unnecessary message formatting when that log level is disabled.
+So the preferred approach is:
+log.info("Customer ID: {}", customerId);
+instead of:
+log.info("Customer ID: " + customerId);
+
+Logging objects
+Suppose:
+Customer customer = new Customer();
+You can log the object:
+log.debug("Customer details: {}", customer);
+SLF4J will internally use the object's toString() representation.
+For example, if:
+@Override
+public String toString() {
+    return "Customer{name='" + name + "', email='" + email + "'}";
+}
+Then:
+Customer details: Customer{name='Ram', email='ram@gmail.com'}
+If you use Lombok's:
+@Data
+or:
+@ToString
+a toString() method can be generated automatically.
+
+Exception logging
+Suppose an exception occurs:
+try {
+
+    customerRepository.save(customer);
+
+} catch (Exception e) {
+
+    log.error("Failed to save customer");
+}
+This only logs:
+Failed to save customer
+You don't see the actual exception details.
+Instead:
+catch (Exception e) {
+
+    log.error("Failed to save customer", e);
+}
+Now you get:
+Failed to save customer
+along with the exception and stack trace.
+You can also include variables:
+catch (Exception e) {
+
+    log.error(
+        "Failed to save customer with ID: {}",
+        customer.getId(),
+        e
+    );
+}
+This logs:
+Failed to save customer with ID: 10
+plus the stack trace.
+
+Simple rule to remember
+log.info("Message");
+
+log.info("Customer ID: {}", customerId);
+
+log.info(
+    "Customer: {}, Email: {}",
+    name,
+    email
+);
+
+log.error("Something went wrong", exception);
+Important
+Avoid logging sensitive information such as:
+Passwords
+Tokens
+Credit card details
+Secrets
+Even in debugging logs.
+8. Where to Place Logs in a Real Spring Boot Application
+In a typical application:
+Client
+   ↓
+Controller
+   ↓
+Service
+   ↓
+Repository
+   ↓
+Database
+You do not need to log everything everywhere. Log meaningful events.
+
+1. Controller Layer
+The Controller receives the HTTP request.
+Example:
+@Slf4j
+@RestController
+@RequestMapping("/customers")
+public class CustomerController {
+
+    @PostMapping
+    public CustomerResponseDTO createCustomer(
+            @RequestBody CustomerRequestDTO request) {
+
+        log.info("Received request to create customer");
+
+        return customerService.createCustomer(request);
+    }
+}
+Here, we log:
+A request has reached the application.
+You can also log important request details:
+log.info(
+    "Received request to fetch customer with ID: {}",
+    customerId
+);
+
+2. Service Layer
+The Service contains the business logic.
+This is usually where most useful application logs are written.
+@Slf4j
+@Service
+public class CustomerService {
+
+    public CustomerResponseDTO createCustomer(
+            CustomerRequestDTO request) {
+
+        log.info(
+            "Starting customer creation for email: {}",
+            request.getEmail()
+        );
+
+        // business logic
+
+        log.info("Customer created successfully");
+
+        return response;
+    }
+}
+A good flow is:
+INFO → Operation started
+
+DEBUG → Important internal details
+
+INFO → Operation completed
+
+ERROR → Operation failed
+Example:
+public Customer getCustomer(Long id) {
+
+    log.info("Fetching customer with ID: {}", id);
+
+    Customer customer = customerRepository
+            .findById(id)
+            .orElseThrow(() -> {
+
+                log.warn(
+                    "Customer not found with ID: {}",
+                    id
+                );
+
+                return new ResourceNotFoundException(
+                    "Customer not found"
+                );
+            });
+
+    log.debug("Customer found: {}", customer);
+
+    return customer;
+}
+
+3. Repository Layer
+The Repository communicates with the database.
+Usually, you don't need to manually log every repository call.
+For example:
+customerRepository.save(customer);
+You don't necessarily need:
+log.info("Calling repository save method");
+Why?
+Because it can create unnecessary logs.
+Instead, log the important business operation in the service:
+log.info("Saving customer with email: {}", email);
+
+customerRepository.save(customer);
+If you want to see generated SQL, Spring Boot/Hibernate can log it separately.
+
+Complete Example
+Let's see the full flow.
+Controller
+@Slf4j
+@RestController
+@RequestMapping("/customers")
+public class CustomerController {
+
+    @GetMapping("/{id}")
+    public Customer getCustomer(
+            @PathVariable Long id) {
+
+        log.info(
+            "Received request for customer ID: {}",
+            id
+        );
+
+        return customerService.getCustomer(id);
+    }
+}
+Service
+@Slf4j
+@Service
+public class CustomerService {
+
+    public Customer getCustomer(Long id) {
+
+        log.info(
+            "Fetching customer with ID: {}",
+            id
+        );
+
+        Customer customer = customerRepository
+                .findById(id)
+                .orElseThrow(() -> {
+
+                    log.warn(
+                        "Customer not found with ID: {}",
+                        id
+                    );
+
+                    return new ResourceNotFoundException(
+                            "Customer not found"
+                    );
+                });
+
+        log.info(
+            "Customer fetched successfully with ID: {}",
+            id
+        );
+
+        return customer;
+    }
+}
+
+What happens when the API is called?
+Suppose the client calls:
+GET /customers/10
+The logs could be:
+INFO  CustomerController - Received request for customer ID: 10
+
+INFO  CustomerService - Fetching customer with ID: 10
+
+INFO  CustomerService - Customer fetched successfully with ID: 10
+If the customer does not exist:
+INFO  CustomerController - Received request for customer ID: 10
+
+INFO  CustomerService - Fetching customer with ID: 10
+
+WARN  CustomerService - Customer not found with ID: 10
+If something unexpected happens:
+catch (Exception e) {
+
+    log.error(
+        "Unexpected error while fetching customer with ID: {}",
+        id,
+        e
+    );
+
+    throw e;
+}
+
+Simple Logging Strategy
+For your Spring Boot applications, initially follow this:
+Layer
+What to log
+Controller
+Important incoming requests
+Service
+Start/end of important business operations
+Service
+Important IDs or debugging details
+Service
+Warnings and errors
+Repository
+Usually no manual logs needed
+
+Simple rule
+Log the important flow of the application, not every single line of code.
+9. Logging Exceptions and Global Exception Handling
+Now let's connect logging with something you already learned:
+Exception
+   ↓
+Global Exception Handler
+   ↓
+Error Response
+The important question is:
+Where should we log the exception?
+
+Example flow
+Suppose we have this service:
+@Slf4j
+@Service
+public class CustomerService {
+
+    public Customer getCustomer(Long id) {
+
+        return customerRepository.findById(id)
+                .orElseThrow(() -> {
+                    
+                    log.warn(
+                        "Customer not found with ID: {}",
+                        id
+                    );
+
+                    return new ResourceNotFoundException(
+                        "Customer not found with ID: " + id
+                    );
+                });
+    }
+}
+If customer 10 does not exist:
+GET /customers/10
+The flow is:
+Customer not found
+        ↓
+ResourceNotFoundException thrown
+        ↓
+GlobalExceptionHandler catches it
+        ↓
+Error response returned to client
+
+Should we log again in the Global Exception Handler?
+You can, but avoid unnecessarily logging the same exception multiple times.
+For an expected exception such as:
+Customer not found
+Invalid input
+Duplicate email
+you might log it as WARN.
+Example:
+@Slf4j
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNotFound(
+            ResourceNotFoundException ex) {
+
+        log.warn("Resource not found: {}", ex.getMessage());
+
+        ErrorResponse response = new ErrorResponse(
+                HttpStatus.NOT_FOUND.value(),
+                ex.getMessage()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(response);
+    }
+}
+
+Unexpected exceptions
+Now suppose something unexpected happens:
+Database connection failure
+NullPointerException
+Unexpected server error
+These are good candidates for ERROR logging.
+@Slf4j
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleException(
+            Exception ex) {
+
+        log.error(
+                "Unexpected error occurred",
+                ex
+        );
+
+        ErrorResponse response = new ErrorResponse(
+                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                "Something went wrong"
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(response);
+    }
+}
+Notice:
+log.error("Unexpected error occurred", ex);
+Passing ex as the last argument logs the full stack trace.
+
+Important: ex.getMessage() vs ex
+Only message
+log.error("Error: {}", ex.getMessage());
+You may get:
+Error: Database connection failed
+Full exception
+log.error("Error occurred", ex);
+You get:
+Error occurred
+
+java.sql.SQLException: Database connection failed
+    at ...
+    at ...
+    at ...
+For debugging unexpected problems, the second one is much more useful.
+
+A practical approach
+You can follow this simple rule:
+Expected business exceptions
+log.warn("Customer not found with ID: {}", id);
+Examples:
+Resource not found
+Duplicate customer
+Invalid business operation
+Unexpected system exceptions
+log.error("Unexpected error occurred", ex);
+Examples:
+Database failure
+Unexpected NullPointerException
+Server failure
+
+Avoid duplicate logging
+Consider this:
+try {
+
+    customerRepository.save(customer);
+
+} catch (Exception e) {
+
+    log.error("Save failed", e);
+
+    throw e;
+}
+Then your global exception handler does:
+log.error("Unexpected error", e);
+Now the same exception may be logged twice.
+ERROR Save failed
+Stack trace...
+
+ERROR Unexpected error
+Stack trace...
+Usually, it is better to decide one main place to log the full unexpected exception.
+For a simple Spring Boot application, a good approach is:
+Service
+  ↓
+Throw exception
+  ↓
+Global Exception Handler
+  ↓
+log.error(..., ex)
+
+Simple flow to remember
+Controller
+   ↓
+Service
+   ↓
+Exception occurs
+   ↓
+Throw exception
+   ↓
+@RestControllerAdvice
+   ↓
+Log the exception
+   ↓
+Return ErrorResponse
+Next topic
+Logging to a file — instead of seeing logs only in the IntelliJ console, we'll configure Spring Boot to save logs into a .log file.
+10. Logging to a File in Spring Boot
+Until now, our logs appeared in the console:
+INFO  Customer created successfully
+WARN  Customer not found
+ERROR Failed to save customer
+But when the application stops, console logs are not a convenient permanent record.
+We can configure Spring Boot to write logs to a file.
+
+1. Create a log file
+In application.properties, add:
+logging.file.name=logs/application.log
+Now Spring Boot will create:
+your-project
+│
+├── logs
+│   └── application.log
+│
+└── src
+Your logs will go to:
+application.log
+
+2. Example
+Suppose your code contains:
+@Slf4j
+@Service
+public class CustomerService {
+
+    public void createCustomer() {
+
+        log.info("Customer creation started");
+
+        log.info("Customer created successfully");
+    }
+}
+The logs can appear in:
+logs/application.log
+Example:
+INFO  Customer creation started
+INFO  Customer created successfully
+
+Console + File
+When you configure:
+logging.file.name=logs/application.log
+Spring Boot can continue logging to the console while also writing logs to the file.
+So:
+Application
+     ↓
+   Logback
+   ↙     ↘
+Console   application.log
+
+3. Configure the file location
+You can also specify a different path:
+logging.file.name=C:/logs/application.log
+Then the file will be created at that location.
+Or, commonly inside your project:
+logging.file.name=logs/application.log
+
+4. Configure only a directory
+You can also configure a directory:
+logging.file.path=logs
+Then Spring Boot creates its default log file inside that directory.
+For learning, I recommend using:
+logging.file.name=logs/application.log
+because the exact filename is clear.
+
+5. Combine it with log levels
+You can configure both together:
+logging.level.root=INFO
+
+logging.level.com.example.cruds=DEBUG
+
+logging.file.name=logs/application.log
+Meaning:
+Spring Boot logs → INFO and above
+
+Your application logs → DEBUG and above
+
+Logs → Console + application.log
+For example:
+log.debug("Customer ID: {}", id);
+
+log.info("Fetching customer");
+
+log.warn("Customer not found");
+
+log.error("Database error occurred", exception);
+These logs can now be stored in:
+logs/application.log
+
+Simple flow
+Your Code
+    ↓
+log.info()
+log.debug()
+log.error()
+    ↓
+SLF4J
+    ↓
+Logback
+    ↓
+┌───────────────┐
+│ Console       │
+│               │
+│ Log File      │
+└───────────────┘
+Important point
+Logging to a file is useful because when an error happens in production, you can inspect the log file and see what happened.
+Next topic
+Log patterns — understanding this type of output:
+2026-08-27 10:30:15 INFO  [main] CustomerService - Customer created
+We'll break down every part and then learn how to customize the log format.
+
+11. Log Patterns in Spring Boot
+When you run a Spring Boot application, you may see logs like:
+2026-08-27T10:30:15.123+05:30  INFO 12345 --- [main] c.e.cruds.CrudsApplication : Application started
+Let's break this into parts.
+2026-08-27T10:30:15.123+05:30
+This is the date and time when the log was generated.
+
+INFO
+This is the log level.
+It can be:
+TRACE
+DEBUG
+INFO
+WARN
+ERROR
+
+12345
+This is the process ID (PID) of the running application.
+
+[main]
+This is the thread name.
+For example:
+[main]
+[nio-8080-exec-1]
+When an HTTP request is processed, you may see:
+[nio-8080-exec-1]
+That means a Tomcat request-processing thread handled the request.
+
+c.e.cruds.CrudsApplication
+This represents the class/logger name that generated the log.
+
+Application started
+This is your actual log message.
+
+Complete structure
+DATE + TIME
+     ↓
+2026-08-27 10:30:15
+
+LOG LEVEL
+     ↓
+INFO
+
+THREAD
+     ↓
+[main]
+
+CLASS
+     ↓
+CustomerService
+
+MESSAGE
+     ↓
+Customer created successfully
+So conceptually:
+TIME | LEVEL | THREAD | CLASS | MESSAGE
+
+Customizing the Console Log Pattern
+In application.properties, you can customize the format:
+logging.pattern.console=%d{yyyy-MM-dd HH:mm:ss} - %level - %logger{36} - %msg%n
+This means:
+%d       → Date and time
+
+%level   → Log level
+
+%logger  → Logger/class name
+
+%msg     → Actual message
+
+%n       → New line
+Example output:
+2026-08-27 10:30:15 - INFO - CustomerService - Customer created successfully
+
+Customizing the File Log Pattern
+If you're logging to a file:
+logging.file.name=logs/application.log
+you can configure its pattern separately:
+logging.pattern.file=%d{yyyy-MM-dd HH:mm:ss} - %level - %logger - %msg%n
+Now the log file may contain:
+2026-08-27 10:30:15 - INFO - CustomerService - Customer created successfully
+2026-08-27 10:31:20 - WARN - CustomerService - Customer not found
+2026-08-27 10:32:10 - ERROR - CustomerService - Database connection failed
+
+Simple configuration for practice
+You can currently keep this in your application.properties:
+logging.level.root=INFO
+
+logging.level.com.example.cruds=DEBUG
+
+logging.file.name=logs/application.log
+
+logging.pattern.console=%d{yyyy-MM-dd HH:mm:ss} - %level - %logger{36} - %msg%n
+
+logging.pattern.file=%d{yyyy-MM-dd HH:mm:ss} - %level - %logger - %msg%n
+
+One important point
+For normal applications, you usually don't need to customize the log pattern immediately. Spring Boot's default pattern is already useful.
+Log pattern customization becomes more useful when you want:
+cleaner logs
+consistent production logs
+easier debugging
+specific information such as timestamps or thread names
+Next topic
+Log rotation and rolling files — what happens when application.log becomes very large, and how Spring Boot/Logback can create files like:
+application.log
+application.2026-08-27.0.log
+application.2026-08-28.0.log
+13. Different Log Levels for Different Packages
+In a real Spring Boot application, you may want:
+Your code → DEBUG
+Spring → INFO
+Hibernate → WARN
+You can configure this in application.properties.
+
+Example
+Suppose your application package is:
+com.example.cruds
+Configure:
+logging.level.root=INFO
+
+logging.level.com.example.cruds=DEBUG
+This means:
+Spring Boot and other libraries → INFO
+Your application                → DEBUG
+So your code:
+log.debug("Customer ID: {}", id);
+will appear.
+
+Controlling Spring Logs
+Suppose Spring is producing too many logs.
+You can configure:
+logging.level.org.springframework=WARN
+Now only:
+WARN
+ERROR
+logs from Spring will appear.
+Your complete configuration can be:
+logging.level.root=INFO
+
+logging.level.com.example.cruds=DEBUG
+
+logging.level.org.springframework=WARN
+
+Controlling Hibernate Logs
+Hibernate can also produce many logs.
+For example:
+logging.level.org.hibernate=WARN
+This reduces Hibernate logging.
+Or, during debugging:
+logging.level.org.hibernate=DEBUG
+But be careful—this can produce a lot of output.
+
+Practical Configuration
+For your Spring Boot project, something like this is useful:
+# General application logging
+logging.level.root=INFO
+
+# My application
+logging.level.com.example.cruds=DEBUG
+
+# Reduce framework logs
+logging.level.org.springframework=WARN
+logging.level.org.hibernate=WARN
+Now the console is easier to read.
+Your application
+    ↓
+DEBUG, INFO, WARN, ERROR
+
+Spring
+    ↓
+WARN, ERROR
+
+Hibernate
+    ↓
+WARN, ERROR
+
+Important concept: Package hierarchy
+Suppose you configure:
+logging.level.com.example.cruds=DEBUG
+Then it also applies to subpackages:
+com.example.cruds.controller
+com.example.cruds.service
+com.example.cruds.repository
+com.example.cruds.exception
+So you don't need to configure every class separately.
+
+You can configure a specific class too
+For example:
+logging.level.com.example.cruds.service.CustomerService=TRACE
+Now only CustomerService can show TRACE logs.
+Example:
+log.trace("Entering getCustomer()");
+log.debug("Customer ID: {}", id);
+log.info("Customer fetched");
+All three can be displayed for that specific class.
+
+Simple rule
+A good development configuration is:
+logging.level.root=INFO
+logging.level.com.example.cruds=DEBUG
+For production, you will usually keep logging less verbose, for example:
+logging.level.root=INFO
+logging.level.com.example.cruds=INFO
+Enable detailed logs only where you need them.
+Next topic
+Logging SQL queries in Spring Boot and Hibernate—how to see the SQL generated by JPA/Hibernate, including query parameters.
+14. Logging SQL Queries in Spring Boot and Hibernate
+When using JPA/Hibernate, you may want to see the SQL generated by Hibernate.
+For example, when you write:
+customerRepository.findById(10L);
+Hibernate may generate SQL like:
+select
+    c1_0.customer_id,
+    c1_0.name,
+    c1_0.email
+from customer c1_0
+where c1_0.customer_id=?
+
+1. Show SQL
+In application.properties:
+spring.jpa.show-sql=true
+Now Hibernate SQL will be displayed in the console.
+Example:
+Hibernate:
+    select
+        c1_0.customer_id,
+        c1_0.name
+    from
+        customer c1_0
+    where
+        c1_0.customer_id=?
+The ? represents a parameter value.
+For example:
+customerRepository.findById(10L);
+The SQL shows:
+where customer_id=?
+But you may also want to see that the value is 10.
+
+2. Enable Hibernate SQL Logging
+You can configure:
+logging.level.org.hibernate.SQL=DEBUG
+This logs the generated SQL.
+Example:
+DEBUG org.hibernate.SQL -
+select * from customer where customer_id=?
+
+3. Show Query Parameter Values
+With modern Hibernate versions, parameter binding can be logged using:
+logging.level.org.hibernate.orm.jdbc.bind=TRACE
+Now you can see something similar to:
+Hibernate SQL:
+select * from customer where customer_id=?
+
+Binding parameter [1] as [BIGINT] - [10]
+So Hibernate tells you:
+? → 10
+
+Recommended Configuration for Development
+For your Spring Boot project:
+# Show generated SQL
+logging.level.org.hibernate.SQL=DEBUG
+
+# Show SQL parameter values
+logging.level.org.hibernate.orm.jdbc.bind=TRACE
+You can optionally add:
+spring.jpa.show-sql=true
+But avoid enabling every possible SQL logging option unnecessarily, because you can get duplicate or noisy output.
+
+Complete Example
+Suppose you call:
+customerRepository.findByEmail("ram@gmail.com");
+Your application may log:
+INFO  CustomerService - Fetching customer by email: ram@gmail.com
+
+DEBUG org.hibernate.SQL -
+select
+    c1_0.customer_id,
+    c1_0.email,
+    c1_0.name
+from customer c1_0
+where c1_0.email=?
+
+TRACE ... binding parameter [1] - [ram@gmail.com]
+The complete flow becomes:
+Your Code
+    ↓
+CustomerRepository
+    ↓
+Hibernate generates SQL
+    ↓
+SQL Logger
+    ↓
+Console / Log File
+
+Important Note
+SQL logging is mainly useful during development and debugging.
+In production, detailed SQL and parameter logging can:
+create huge log files
+affect performance
+expose sensitive data
+So don't blindly enable:
+logging.level.org.hibernate.SQL=DEBUG
+logging.level.org.hibernate.orm.jdbc.bind=TRACE
+in production.
+
+Simple takeaway
+# Generated SQL
+logging.level.org.hibernate.SQL=DEBUG
+
+# Values passed to ?
+logging.level.org.hibernate.orm.jdbc.bind=TRACE
+Now you know how to see both:
+SQL query
+and:
+parameter values
+Next topic
+logback-spring.xml — why we need it when application.properties is not enough, and how to create a simple custom logging configuration.

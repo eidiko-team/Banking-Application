@@ -1,7 +1,19 @@
-global handler
-response entity
-yml
-modelmapper
 objectmapper
 file to java/json and reverse
 retree functionality
+security
+concurrent package
+multiti threading
+csrf implementation(test)
+pdf read and write (pdddoc,pdfbox) pending
+which filter triggers first mdc or security
+
+
+---------------------------------------------------------------------------------
+
+xl read write
+yml
+response entity
+global handler
+Actuator
+model mapper

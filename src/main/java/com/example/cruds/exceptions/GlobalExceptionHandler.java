@@ -1,12 +1,12 @@
 package com.example.cruds.exceptions;
 
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -14,6 +14,7 @@ import java.util.Map;
 //Request → DispatcherServlet → Controller → Service → Repository → Exception thrown → DispatcherServlet
 //intercepts it → @RestControllerAdvice finds the matching @ExceptionHandler → Builds
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -53,6 +54,9 @@ public class GlobalExceptionHandler {
         System.out.println("Message: " + e.getMessage());
 
         System.out.println("Cause: " + e.getCause());
+
+        //like database errors
+        log.error("Unexpected error occurred", e);
 
 
         return ResponseEntity

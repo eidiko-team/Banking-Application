@@ -6,6 +6,7 @@ import com.example.cruds.dto.CustomerResponseDTO;
 import com.example.cruds.exceptions.CustomerAlreadyExistsException;
 import com.example.cruds.exceptions.ErrorResponse1;
 import com.example.cruds.services.CustomerService;
+import com.example.cruds.services.ExcelService;
 import com.example.cruds.services.PdfService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -19,8 +20,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.io.IOException;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -35,6 +34,9 @@ public class CustomerController {
 
     @Autowired
     private PdfService pdfService;
+
+    @Autowired
+    private ExcelService excelService;
 
     //testing the @value here
     @Value("${bank.name}")
@@ -227,29 +229,55 @@ public class CustomerController {
 //    }
 
 
-    @GetMapping("/{customerId}/pdf")
-    public ResponseEntity<byte[]> downloadCustomerPdf(
-            @PathVariable Long customerId
-    ) throws IOException {
+//    @GetMapping("/{customerId}/pdf")
+//    public ResponseEntity<byte[]> downloadCustomerPdf(
+//            @PathVariable Long customerId
+//    ) throws IOException {
+//
+//        // Step 1: Get customer data
+//        CustomerResponseDTO customer =
+//                customerService.getCustomer(customerId);
+//
+//        // Step 2: Convert DTO to PDF
+//        byte[] pdf =
+//                pdfService.generateCustomerPdf(customer);
+//
+//        // Step 3: Return PDF
+//        return ResponseEntity.ok()
+//                .header(
+//                        HttpHeaders.CONTENT_DISPOSITION,
+//                        "attachment; filename=customer_"
+//                                + customerId
+//                                + ".pdf"
+//                )
+//                .contentType(MediaType.APPLICATION_PDF)
+//                .body(pdf);
+//    }
 
-        // Step 1: Get customer data
-        CustomerResponseDTO customer =
-                customerService.getCustomer(customerId);
+    //generic excel call
+    @GetMapping("/excel")
+    public ResponseEntity<byte[]> downloadCustomersExcel() {
 
-        // Step 2: Convert DTO to PDF
-        byte[] pdf =
-                pdfService.generateCustomerPdf(customer);
+        List<CustomerResponseDTO> customers =
+                customerService.getAll();
 
-        // Step 3: Return PDF
+        byte[] excel =
+                excelService.generateExcel(
+                        customers,
+                        "Customers"
+                );
+
         return ResponseEntity.ok()
                 .header(
                         HttpHeaders.CONTENT_DISPOSITION,
-                        "attachment; filename=customer_"
-                                + customerId
-                                + ".pdf"
+                        "attachment; filename=customers.xlsx"
                 )
-                .contentType(MediaType.APPLICATION_PDF)
-                .body(pdf);
+                .contentType(
+                        MediaType.parseMediaType(
+                                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                        )
+                )
+                .body(excel);
     }
 
 

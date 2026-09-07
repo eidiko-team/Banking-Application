@@ -1,0 +1,975 @@
+# Spring Boot Filters and OncePerRequestFilter
+
+## 1. Introduction
+
+Before understanding `OncePerRequestFilter`, it is important to understand how an HTTP request travels through a Spring Boot application.
+
+Consider this request:
+
+GET /accounts/10
+
+The request does not directly reach the controller.
+
+The basic flow is:
+
+Client
+↓
+Embedded Tomcat
+↓
+Servlet Filters
+↓
+DispatcherServlet
+↓
+Controller
+↓
+Service
+↓
+Repository
+↓
+Response
+
+---
+
+# 2. What is Tomcat?
+
+When a Spring Boot web application starts, Spring Boot starts an embedded web server. By default, this is commonly Tomcat.
+
+For example, when the application runs on:
+
+http://localhost:8087
+
+Tomcat listens on port `8087`.
+
+When a client such as Postman sends:
+
+GET /accounts/10
+
+the request first reaches Tomcat.
+
+The flow starts like this:
+
+Client / Postman
+↓
+Tomcat
+
+Tomcat is responsible for receiving the HTTP request and passing it into the Java web application.
+
+---
+
+# 3. What is a Servlet?
+
+A Servlet is a Java component that processes HTTP requests and generates HTTP responses.
+
+A simple servlet can look like this:
+
+```java
+public class AccountServlet extends HttpServlet {
+
+    protected void doGet(
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) {
+        // Process request
+    }
+}
+```
+
+A servlet receives:
+
+```java
+HttpServletRequest
+```
+
+and works with:
+
+```java
+HttpServletResponse
+```
+
+In Spring MVC, we normally do not create servlets directly.
+
+Spring provides a central servlet called:
+
+```text
+DispatcherServlet
+```
+
+The `DispatcherServlet` receives the request and finds the appropriate controller.
+
+For example:
+
+```java
+@GetMapping("/accounts/{id}")
+public ResponseEntity<AccountResponseDTO> getAccount(
+        @PathVariable Long id
+) {
+    // business logic
+}
+```
+
+For the request:
+
+GET /accounts/10
+
+the `DispatcherServlet` finds the matching controller method and invokes it.
+
+---
+
+# 4. What is HttpServletRequest?
+
+`HttpServletRequest` represents the incoming HTTP request.
+
+For example, the client may send:
+
+```text
+GET /accounts/10 HTTP/1.1
+
+Host: localhost:8087
+Authorization: Bearer token
+X-Request-Id: abc-123
+```
+
+All this request information is available through:
+
+```java
+HttpServletRequest request
+```
+
+Examples:
+
+Get the HTTP method:
+
+```java
+request.getMethod();
+```
+
+Result:
+
+```text
+GET
+```
+
+Get the URI:
+
+```java
+request.getRequestURI();
+```
+
+Result:
+
+```text
+/accounts/10
+```
+
+Get a header:
+
+```java
+request.getHeader("X-Request-Id");
+```
+
+Result:
+
+```text
+abc-123
+```
+
+So:
+
+```text
+HttpServletRequest
+```
+
+represents the incoming HTTP request.
+
+---
+
+# 5. What is HttpServletResponse?
+
+`HttpServletResponse` represents the HTTP response that will be sent back to the client.
+
+For example, your application may return:
+
+```json
+{
+    "accountId": 10,
+    "balance": 5000
+}
+```
+
+The response also contains:
+
+```text
+HTTP Status
+Headers
+Response Body
+```
+
+The filter or application can work with the response object.
+
+For example:
+
+```java
+response.setHeader("X-Request-Id", requestId);
+```
+
+So:
+
+```text
+HttpServletRequest
+        ↓
+Incoming request
+
+HttpServletResponse
+        ↓
+Outgoing response
+```
+
+---
+
+# 6. What is a Filter?
+
+A Filter is a component that can intercept a request before it reaches the servlet or controller.
+
+A filter can perform actions such as:
+
+* Logging
+* Authentication
+* Authorization
+* Adding request information
+* Adding response headers
+* Validating requests
+* Rejecting requests
+* Cleaning up resources
+
+The basic flow is:
+
+Client
+↓
+Filter
+↓
+DispatcherServlet
+↓
+Controller
+↓
+Service
+↓
+Repository
+↓
+Response
+
+A filter can also execute code after the request processing is completed.
+
+Conceptually:
+
+```java
+// Before request processing
+
+chain.doFilter(request, response);
+
+// After request processing
+```
+
+Therefore, a filter wraps the remaining request processing.
+
+---
+
+# 7. The Servlet Filter Interface
+
+A simplified filter looks like this:
+
+```java
+public interface Filter {
+
+    void doFilter(
+            ServletRequest request,
+            ServletResponse response,
+            FilterChain chain
+    );
+}
+```
+
+If we create a filter directly, we can write:
+
+```java
+@Component
+public class MyFilter implements Filter {
+
+    @Override
+    public void doFilter(
+            ServletRequest request,
+            ServletResponse response,
+            FilterChain chain
+    ) throws IOException, ServletException {
+
+        System.out.println("Before request");
+
+        chain.doFilter(request, response);
+
+        System.out.println("After request");
+    }
+}
+```
+
+When a request arrives:
+
+```text
+GET /accounts/10
+```
+
+the execution is:
+
+```text
+Before request
+↓
+Request continues
+↓
+Controller
+↓
+Service
+↓
+Repository
+↓
+Request processing completes
+↓
+After request
+```
+
+---
+
+# 8. What is FilterChain?
+
+An application can have multiple filters.
+
+For example:
+
+```text
+Filter A
+Filter B
+Filter C
+```
+
+The request flow is:
+
+```text
+Client
+↓
+Filter A
+↓
+Filter B
+↓
+Filter C
+↓
+DispatcherServlet
+↓
+Controller
+```
+
+Each filter receives:
+
+```java
+FilterChain chain
+```
+
+This represents the remaining path of request processing.
+
+When a filter calls:
+
+```java
+chain.doFilter(request, response);
+```
+
+it means:
+
+> Continue the request to the next filter or servlet.
+
+---
+
+# 9. Understanding FilterChain with Multiple Filters
+
+Suppose we have three filters.
+
+Filter A:
+
+```java
+System.out.println("A Before");
+
+chain.doFilter(request, response);
+
+System.out.println("A After");
+```
+
+Filter B:
+
+```java
+System.out.println("B Before");
+
+chain.doFilter(request, response);
+
+System.out.println("B After");
+```
+
+Filter C:
+
+```java
+System.out.println("C Before");
+
+chain.doFilter(request, response);
+
+System.out.println("C After");
+```
+
+The request moves forward like this:
+
+```text
+A Before
+↓
+B Before
+↓
+C Before
+↓
+DispatcherServlet
+↓
+Controller
+↓
+Service
+↓
+Repository
+```
+
+After the request processing finishes, execution returns backwards:
+
+```text
+Repository finishes
+↑
+Controller finishes
+↑
+C After
+↑
+B After
+↑
+A After
+↑
+Response sent to client
+```
+
+The complete execution order is:
+
+```text
+A Before
+B Before
+C Before
+
+Controller / Service / Repository
+
+C After
+B After
+A After
+```
+
+This happens because `chain.doFilter()` behaves like a normal method call.
+
+When the next processing finishes, execution returns to the line after:
+
+```java
+chain.doFilter(request, response);
+```
+
+---
+
+# 10. What Happens If We Do Not Call chain.doFilter()?
+
+Consider this filter:
+
+```java
+@Override
+public void doFilter(
+        ServletRequest request,
+        ServletResponse response,
+        FilterChain chain
+) {
+
+    System.out.println("Inside Filter");
+
+    // chain.doFilter() is not called
+}
+```
+
+The flow becomes:
+
+```text
+Client
+↓
+Filter
+↓
+STOP
+```
+
+The request will not continue to:
+
+```text
+Next Filter
+DispatcherServlet
+Controller
+```
+
+Therefore:
+
+```java
+chain.doFilter(request, response);
+```
+
+is what allows the request to continue.
+
+---
+
+# 11. How Does Our MdcFilter Become a Filter?
+
+Consider:
+
+```java
+@Component
+@Slf4j
+public class MdcFilter extends OncePerRequestFilter {
+```
+
+When the Spring Boot application starts:
+
+```text
+SpringApplication.run()
+↓
+Spring ApplicationContext is created
+↓
+Component scanning happens
+↓
+Spring finds @Component
+↓
+Spring creates MdcFilter bean
+```
+
+Since:
+
+```java
+MdcFilter extends OncePerRequestFilter
+```
+
+the class is ultimately a Servlet Filter.
+
+Spring Boot registers the filter into the web application's filter processing.
+
+So, during application startup:
+
+```text
+Spring Boot starts
+↓
+MdcFilter bean is created
+↓
+MdcFilter is registered for request processing
+```
+
+Later, when a request arrives:
+
+```text
+GET /accounts/10
+```
+
+the request reaches:
+
+```text
+Tomcat
+↓
+Registered Filters
+↓
+MdcFilter
+```
+
+The filter is automatically invoked.
+
+We do not manually call:
+
+```java
+mdcFilter.doFilter(...);
+```
+
+The web and servlet infrastructure handles that automatically.
+
+---
+
+# 12. Why Use OncePerRequestFilter?
+
+A normal filter requires us to implement:
+
+```java
+doFilter(...)
+```
+
+For example:
+
+```java
+public class MyFilter implements Filter {
+
+    @Override
+    public void doFilter(...) {
+        // Custom logic
+    }
+}
+```
+
+Spring provides a convenient base class:
+
+```java
+OncePerRequestFilter
+```
+
+Our filter becomes:
+
+```java
+public class MdcFilter extends OncePerRequestFilter {
+
+    @Override
+    protected void doFilterInternal(...) {
+        // Custom logic
+    }
+}
+```
+
+The main difference is:
+
+```text
+Normal Filter
+    ↓
+We implement doFilter()
+
+OncePerRequestFilter
+    ↓
+Spring provides doFilter()
+    ↓
+We implement doFilterInternal()
+```
+
+---
+
+# 13. How Does the Request Reach doFilterInternal()?
+
+The servlet infrastructure understands the standard Filter method:
+
+```java
+doFilter(request, response, filterChain)
+```
+
+It does not directly call:
+
+```java
+doFilterInternal()
+```
+
+The flow is:
+
+```text
+Client Request
+↓
+Tomcat
+↓
+Servlet Filter Infrastructure
+↓
+doFilter()
+↓
+OncePerRequestFilter internal logic
+↓
+doFilterInternal()
+↓
+Our custom code
+```
+
+Conceptually, `OncePerRequestFilter` works like this:
+
+```java
+public abstract class OncePerRequestFilter implements Filter {
+
+    @Override
+    public final void doFilter(
+            ServletRequest request,
+            ServletResponse response,
+            FilterChain filterChain
+    ) throws ServletException, IOException {
+
+        // Internal Spring logic
+
+        doFilterInternal(
+                (HttpServletRequest) request,
+                (HttpServletResponse) response,
+                filterChain
+        );
+    }
+
+    protected abstract void doFilterInternal(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain
+    ) throws ServletException, IOException;
+}
+```
+
+This is a simplified representation.
+
+The actual Spring implementation contains additional logic.
+
+The important concept is:
+
+```text
+Tomcat / Servlet Infrastructure
+↓
+doFilter()
+↓
+OncePerRequestFilter
+↓
+doFilterInternal()
+↓
+Our MdcFilter code
+```
+
+---
+
+# 14. Our MdcFilter
+
+Our filter looks like this:
+
+```java
+@Component
+@Slf4j
+public class MdcFilter extends OncePerRequestFilter {
+
+    private static final String REQUEST_ID = "requestId";
+    private static final String REQUEST_ID_HEADER = "X-Request-Id";
+
+    @Override
+    protected void doFilterInternal(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain
+    ) throws ServletException, IOException {
+
+        // MDC logic
+
+    }
+}
+```
+
+When the request reaches this filter, `OncePerRequestFilter` eventually invokes:
+
+```java
+doFilterInternal(...)
+```
+
+This is where our custom MDC logic starts.
+
+For example:
+
+```java
+String requestId =
+        request.getHeader(REQUEST_ID_HEADER);
+```
+
+Then we can store information in MDC:
+
+```java
+MDC.put(REQUEST_ID, requestId);
+```
+
+Then allow the request to continue:
+
+```java
+filterChain.doFilter(request, response);
+```
+
+After the request processing completes:
+
+```java
+MDC.clear();
+```
+
+---
+
+# 15. Complete Request Flow for Our MdcFilter
+
+Suppose the client sends:
+
+```text
+GET /accounts/10
+```
+
+The complete flow is:
+
+```text
+Client
+↓
+Tomcat receives request
+↓
+Servlet Filter Chain
+↓
+MdcFilter
+↓
+OncePerRequestFilter.doFilter()
+↓
+Spring performs internal filter checks
+↓
+MdcFilter.doFilterInternal()
+↓
+Read request information
+↓
+Add request information to MDC
+↓
+filterChain.doFilter()
+↓
+Next Filters
+↓
+DispatcherServlet
+↓
+Controller
+↓
+Service
+↓
+Repository
+↓
+Response processing completes
+↑
+Execution returns to MdcFilter
+↓
+MDC.clear()
+↓
+Response sent back to client
+```
+
+---
+
+# 16. The Most Important Concept
+
+A filter generally works like this:
+
+```java
+// BEFORE
+
+chain.doFilter(request, response);
+
+// AFTER
+```
+
+For our MDC filter:
+
+```java
+try {
+
+    // BEFORE
+    MDC.put(...);
+
+    // Continue request
+    filterChain.doFilter(request, response);
+
+} finally {
+
+    // AFTER
+    MDC.clear();
+}
+```
+
+Therefore:
+
+```text
+MDC.put()
+↓
+MDC information is available
+↓
+Controller
+↓
+Service
+↓
+Repository
+↓
+Request processing finishes
+↓
+MDC.clear()
+```
+
+The MDC values are available during the complete request processing because they are added before:
+
+```java
+filterChain.doFilter(...)
+```
+
+and removed after it finishes.
+
+---
+
+# 17. Final Summary
+
+The complete architecture can be remembered like this:
+
+```text
+APPLICATION STARTUP
+
+Spring Boot
+↓
+Embedded Tomcat starts
+↓
+Component scanning
+↓
+MdcFilter bean is created
+↓
+Filter is registered
+
+
+REQUEST TIME
+
+Client
+↓
+Tomcat
+↓
+Filter Chain
+↓
+OncePerRequestFilter.doFilter()
+↓
+MdcFilter.doFilterInternal()
+↓
+MDC.put()
+↓
+filterChain.doFilter()
+↓
+Next Filters
+↓
+DispatcherServlet
+↓
+Controller
+↓
+Service
+↓
+Repository
+↓
+Response
+↑
+Execution returns through the filter chain
+↓
+MDC.clear()
+↓
+Client receives response
+```
+
+## Key Points to Remember
+
+1. **Tomcat receives the HTTP request.**
+
+2. **The request passes through registered filters before reaching the DispatcherServlet.**
+
+3. **`HttpServletRequest` represents the incoming HTTP request.**
+
+4. **`HttpServletResponse` represents the outgoing HTTP response.**
+
+5. **A Filter can execute code before and after request processing.**
+
+6. **`FilterChain` represents the remaining request processing path.**
+
+7. **`chain.doFilter()` continues the request to the next filter or servlet.**
+
+8. **`OncePerRequestFilter` provides the standard `doFilter()` implementation.**
+
+9. **We implement `doFilterInternal()` to add our custom logic.**
+
+10. **For our MDC filter, we add MDC values before `filterChain.doFilter()` and clear them after the request processing finishes.**

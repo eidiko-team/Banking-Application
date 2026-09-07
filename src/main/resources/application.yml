@@ -10,9 +10,15 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
+    show-sql: true # Shows SQL queries
+
+  output:
+    ansi:
+      enabled: always
 
 server:
   port: 8087
+
 
 # For testing @Value and @ConfigurationProperties
 bank:
@@ -24,3 +30,77 @@ bank:
 
 loan:
   default-interest-rate: 8.5
+
+
+
+#  Now DEBUG logs are enabled only for application package.
+logging:
+  level:
+    root: INFO  # Spring Boot and other libraries → INFO
+    com.example.cruds: DEBUG # Your application                → DEBUG
+    com.example.cruds.services.AccountService: TRACE   #only AccountService can show TRACE logs.
+    org:
+      springframework: WARN # Controlling Spring Logs to warn and error only
+      hibernate: WARN # Controlling Hibernate Logs
+      SQL: DEBUG
+
+
+
+  file:
+    name: logs/application.log # logs are written to logs/application.log
+
+
+#  file:
+#    name: C:/Users/Sreenivas Bandaru/Desktop/logs/application.log  #saving logs in our desired location
+
+
+#  pattern:
+#    console: "%d{yyyy-MM-dd HH:mm:ss} - %level - %logger{36} - %msg%n" #Customizing the Console Log Pattern
+#    file: "%level - %logger{36} - %n" #Customizing the File Log Pattern
+#
+#  logback:
+#    rollingpolicy:
+#      max-file-size: 20KB
+#      max-history: 7
+
+  logging:
+    pattern:
+      console: "%clr(%d{yyyy-MM-dd HH:mm:ss}){faint} - %clr(%-5level) - [requestId=%X{requestId}] - [%X{method} %X{uri}] - %clr(%logger{36}){cyan} - %msg%n"
+
+      file: "%d{yyyy-MM-dd HH:mm:ss} - %level - [requestId=%X{requestId}] - [%X{method} %X{uri}] - %logger{36} - %msg%n"
+  logback:
+    rollingpolicy:
+      max-file-size: 20KB
+      max-history: 7
+
+
+
+#Actuator
+
+#management:
+#  endpoints:
+#    web:
+#      exposure:
+#        include:
+#          - metrics
+#
+#  endpoint:
+#    health:
+#      show-details: always
+
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+
+  info:
+    env:
+      enabled: true
+
+info:
+  app:
+    name: Banking Application
+    description: Banking management system
+    version: 1.0.0

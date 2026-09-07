@@ -1,0 +1,25 @@
+ENCODING
+    ↓
+Reversible
+    ↓
+Base64
+    ↓
+JWT payload
+
+
+HASHING
+    ↓
+One-way
+    ↓
+BCrypt
+    ↓
+Passwords
+
+
+ENCRYPTION
+    ↓
+Reversible with key
+    ↓
+AES / RSA etc.
+    ↓
+Confidential data
