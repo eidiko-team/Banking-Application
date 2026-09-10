@@ -7,10 +7,10 @@ spring:
     username: root
     password: "Prasad@123"
 
-  jpa:
-    hibernate:
-      ddl-auto: update
-    show-sql: true # Shows SQL queries
+#  jpa:
+#    hibernate:
+#      ddl-auto: update
+#    show-sql: true # Shows SQL queries
 
   output:
     ansi:
@@ -32,19 +32,24 @@ loan:
   default-interest-rate: 8.5
 
 
+jwt:
+  secret: my-super-secret-key-my-super-secret-key
+  expiration: 900000
+  refresh-expiration: 604800000
+
+
 
 #  Now DEBUG logs are enabled only for application package.
 logging:
   level:
-    root: INFO  # Spring Boot and other libraries → INFO
-    com.example.cruds: DEBUG # Your application                → DEBUG
-    com.example.cruds.services.AccountService: TRACE   #only AccountService can show TRACE logs.
-    org:
-      springframework: WARN # Controlling Spring Logs to warn and error only
-      hibernate: WARN # Controlling Hibernate Logs
-      SQL: DEBUG
+    root: INFO
 
+    com.example.cruds: DEBUG
+    com.example.cruds.services.AccountService: TRACE
 
+    org.springframework: WARN
+    org.springframework.security: DEBUG
+    org.hibernate: WARN
 
   file:
     name: logs/application.log # logs are written to logs/application.log

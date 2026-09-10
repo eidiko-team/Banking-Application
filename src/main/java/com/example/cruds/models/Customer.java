@@ -1,5 +1,6 @@
 package com.example.cruds.models;
 
+import com.example.cruds.security.User;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -55,9 +56,8 @@ public class Customer {
     @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL)
     private List<Loan> loans = new ArrayList<>();
 
-
-
-
+    @OneToOne(mappedBy = "customer")
+    private User user;
 
 
 }

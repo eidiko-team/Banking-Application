@@ -13,6 +13,7 @@ public class RamFilter implements Filter {
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
         log.info("i am in Ram filter");
+        log.info("========== RAM FILTER START ==========");
 
         chain.doFilter(request,response);
 

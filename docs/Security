@@ -1,0 +1,991 @@
+
+Note: Without STATELESS, Spring Security is allowed to use the HTTP session (default: IF_REQUIRED).
+--------------------------------------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------------------------------------
+1. Just adding the Spring Security dependency enables default security through Spring Boot auto-configuration.
+--------------------------------------------------------------------------------------------------------------
+Spring Boot automatically configures basic security for you.
+
+So the flow is:
+
+Add Dependency
+      ↓
+Spring Boot detects Spring Security
+      ↓
+Auto Configuration happens
+      ↓
+Default user is created and password given in the console
+      ↓
+All endpoints are protected
+
+Key point:
+Just adding the Spring Security dependency enables default security through Spring Boot auto-configuration.
+
+--------------------------------------------------------------------------------------------------------------
+2. In memory flow of data
+--------------------------------------------------------------------------------------------------------------
+Client
+  ↓
+Spring Security
+  ↓
+"Username = ram"
+  ↓
+UserDetailsService
+  ↓
+loadUserByUsername("ram")
+  ↓
+UserDetails
+  ↓
+username = ram
+password = 1234
+role = USER
+  ↓
+Password verification
+  ↓
+Authentication
+
+
+--------------------------------------------------------------------------------------------------------------
+3. manager can delegate authentication to an appropriate provider.
+--------------------------------------------------------------------------------------------------------------
+
+AuthenticationManager = coordinates authentication.
+
+AuthenticationProvider = performs a particular type of authentication.
+
+DaoAuthenticationProvider = username/password authentication using UserDetailsService and PasswordEncoder.
+
+
+                Login Request
+                     ↓
+              Authentication
+                     ↓
+          AuthenticationManager
+                     ↓
+          AuthenticationProvider
+                     ↓
+          DaoAuthenticationProvider
+                ↙           ↘
+               ↓             ↓
+    UserDetailsService   PasswordEncoder
+               ↓             ↓
+          UserDetails     Verify password
+               ↓             ↓
+               └──────┬──────┘
+                      ↓
+             Authentication
+                      ↓
+              Success / Failure
+
+
+
+
+--------------------------------------------------------------------------------------------------------------
+4. with BasicAuthenticationFilterl,
+--------------------------------------------------------------------------------------------------------------
+
+
+With our current HTTP Basic setup, the client sends credentials with requests.
+
+For example:
+
+GET /accounts
+Authorization: Basic ...
+
+So every request can authenticate using those credentials.
+
+Later, with JWT, the request will look more like:
+
+
+                                POSTMAN
+                                   ↓
+                          GET /accounts
+                          Basic username/password
+                                   ↓
+                           SecurityFilterChain
+                                   ↓
+                          SecurityContextHolderFilter
+                                   ↓
+                       BasicAuthenticationFilter
+                                   ↓
+                          AuthenticationManager
+                                   ↓
+                         AuthenticationProvider
+                                   ↓
+                        DaoAuthenticationProvider
+                               ↙         ↘
+                              ↓           ↓
+                   UserDetailsService   PasswordEncoder
+                              ↓           ↓
+                       UserRepository   matches()
+                              ↓
+                            MySQL
+                              ↓
+                         UserDetails
+                              ↓
+                       Authentication
+                              ↓
+                       SecurityContext
+                              ↓
+                         Authorization
+                              ↓
+                          Controller
+
+
+
+         401 Unauthorized (wrong user name or password)
+         403 Forbidden (insufficient permisiion)
+
+
+--------------------------------------------------------------------------------------------------------------
+5. hasrole() and hasAuthoroty
+--------------------------------------------------------------------------------------------------------------
+
+         hasRole() -> Spring adds the prefix:
+         ------------------------------------
+
+         ex:
+         hasRole("ADMIN")
+                ↓
+         ROLE_ADMIN
+
+
+         hasAuthority() -> You provide the exact authority:
+         --------------------------------------------------
+
+         ex:
+         hasAuthority("ROLE_ADMIN")
+                ↓
+         ROLE_ADMIN
+
+
+--------------------------------------------------------------------------------------------------------------
+         6. Roles vs Permissions
+--------------------------------------------------------------------------------------------------------------
+
+         Suppose we have:
+
+         ROLE_ADMIN
+         ROLE_USER
+
+         These are roles.
+    ---------------------------
+
+         But we could also have authorities such as: these are permissions
+
+         ACCOUNT_READ
+         ACCOUNT_CREATE
+         ACCOUNT_DELETE
+         CUSTOMER_READ
+
+
+--------------------------------------------------------------------------------------------------------------
+7. Role based authenticatio in config (url security)
+--------------------------------------------------------------------------------------------------------------
+
+         .authorizeHttpRequests(auth -> auth
+
+             .requestMatchers(HttpMethod.DELETE, "/accounts/**")
+             .hasRole("ADMIN")
+
+             .requestMatchers(HttpMethod.POST, "/accounts/**")
+             .hasRole("ADMIN")
+
+             .requestMatchers(HttpMethod.GET, "/accounts/**")
+             .hasAnyRole("USER", "ADMIN")
+
+             .anyRequest()
+             .authenticated()
+
+
+
+--------------------------------------------------------------------------------------------------------------
+8. Role based method level
+--------------------------------------------------------------------------------------------------------------
+
+        @PreAuthorize("hasRole('ADMIN')")
+        public void deleteAccount(Long id) {
+            ...
+        }
+
+        flow
+        ----
+
+        DELETE /accounts/10
+                ↓
+        SecurityFilterChain
+                ↓
+        Authentication
+                ↓
+        Authenticated user = ram
+        Role = ROLE_USER
+                ↓
+        Controller
+                ↓
+        AccountService.deleteAccount()
+                ↓
+        @PreAuthorize checks role
+                ↓
+        Requires ADMIN
+                ↓
+        403 Forbidden
+
+
+--------------------------------------------------------------------------------------------------------------
+9. why prefer method level and in the service method only
+--------------------------------------------------------------------------------------------------------------
+
+Why Use Method-Level Security?
+
+Imagine later you have two endpoints calling the same service method:
+
+DELETE /accounts/10
+
+and:
+
+POST /admin/accounts/delete/10
+
+Both eventually call:
+
+deleteAccount(id);
+
+If you secure only one URL:
+
+DELETE /accounts/**
+
+the other endpoint might need another security rule.
+
+But if the actual service method is protected:
+
+@PreAuthorize("hasRole('ADMIN')")
+public void deleteAccount(Long id)
+
+then:
+
+Any caller
+    ↓
+deleteAccount()
+    ↓
+ADMIN required
+
+So the important business operation itself is protected.
+
+
+we can use hasanyrole, has authority same like in the url based
+
+
+
+
+
+--------------------------------------------------------------------------------------------------------------
+10. How It Works Internally — Simple View
+--------------------------------------------------------------------------------------------------------------
+
+
+        When Spring sees:
+
+        @PreAuthorize("hasRole('ADMIN')")
+
+        it creates a security check around the method.
+
+        Conceptually:
+
+                        Method Call
+                             ↓
+                      Security Check
+                             ↓
+                   @PreAuthorize condition
+                             ↓
+                     hasRole('ADMIN')?
+                        ↙          ↘
+                      YES           NO
+                       ↓             ↓
+                 Execute method    Reject
+
+        ---------------------------------------
+
+                 SecurityFilterChain
+                         ↓
+                 Authentication
+                         ↓
+                 Authenticated user
+                         ↓
+                 Controller
+                         ↓
+                 Service
+                         ↓
+                 @PreAuthorize
+                         ↓
+                 Role/permission check
+
+
+        ---------------------------------------------
+                 SecurityFilterChain can protect requests/URLs.
+
+                 @PreAuthorize can protect specific methods.
+
+                 @EnableMethodSecurity enables method-level security.
+
+
+--------------------------------------------------------------------------------------------------------------
+    SecurityContextHolder gives you the current SecurityContext,
+    and the SecurityContext contains the current Authentication.
+--------------------------------------------------------------------------------------------------------------
+
+   Spring Security maintains the SecurityContext for the current execution/request.
+
+    SecurityContextHolder uses a ThreadLocal strategy.
+
+    You don't need to implement this yourself.
+
+    Conceptually:
+
+
+
+    Thread 1
+    ↓
+    ThreadLocal
+    ↓
+    SecurityContext
+    ↓
+    ram / ROLE_USER
+
+
+
+    and:
+
+    Thread 2
+    ↓
+    ThreadLocal
+    ↓
+    SecurityContext
+    ↓
+    admin / ROLE_ADMIN
+
+
+    how to get the dat
+    -------------------
+    SecurityContextHolder
+            .getContext()
+            .getAuthentication()
+            .getName();
+
+
+
+            flow
+           --------
+
+            HTTP Request
+                  ↓
+            Security Filters
+                  ↓
+            Authentication
+                  ↓
+            SecurityContext
+                  ↓
+            SecurityContextHolder
+                  ↓
+            Controller / Service
+                  ↓
+            Request finishes
+                  ↓
+            SecurityContext cleared
+
+
+
+
+--------------------------------------------------------------------------------------------------------------
+    Authentication
+--------------------------------------------------------------------------------------------------------------
+
+SecurityContextHolder
+        │
+        │ getContext()
+        ↓
+SecurityContext
+        │
+        │ getAuthentication()
+        ↓
+Authentication
+        │
+        ├── principal
+        │      ↓
+        │   UserDetails
+        │      ↓
+        │   username = ram
+        │
+        ├── credentials
+        │
+        ├── authorities
+        │      ↓
+        │   ROLE_USER
+        │
+        └── authenticated
+               ↓
+              true
+
+
+
+                               HTTP Request
+                                    ↓
+                           SecurityFilterChain
+                                    ↓
+                        Authentication Filter
+                                    ↓
+                           AuthenticationManager
+                                    ↓
+                        AuthenticationProvider
+                              ↙           ↘
+                   UserDetailsService   PasswordEncoder
+                            ↓                ↓
+                         Database          matches()
+                              ↘           ↙
+                            Authentication
+                                   ↓
+                            SecurityContext
+                                   ↓
+                        SecurityContextHolder
+                                   ↓
+                            Authorization
+                                   ↓
+                           Controller/Service
+
+
+--------------------------------------------------------------------------------------------------------------
+    AuthenticationPrincipal (we can use this annotation to get the value from the security context)
+--------------------------------------------------------------------------------------------------------------
+
+
+                           @GetMapping("/profile")
+                           public String profile(
+                                   @AuthenticationPrincipal UserDetails userDetails) {
+
+                               return userDetails.getUsername();
+                           }
+
+                           You can then access:
+
+                           userDetails.getUsername();
+                           userDetails.getPassword();
+                           userDetails.getAuthorities();
+
+                     -----------------------------------------------------------------------------
+                           Component	                            Purpose
+                           User	                                    Your database user
+                           UserDetails	                            Security representation of user
+                           UserDetailsService                   	Loads user
+                           Authentication	                        Current authentication
+                           SecurityContext                      	Holds current authentication
+                           SecurityContextHolder                	Accesses current security context
+                           @AuthenticationPrincipal             	Conveniently gets current principal
+
+
+
+--------------------------------------------------------------------------------------------------------------
+  CSRF = Cross-Site Request Forgery (if enabled it not allows -> post, put,delete) by default enabled
+--------------------------------------------------------------------------------------------------------------
+
+The basic problem is:
+A malicious website tries to make your browser send a request to another website where you are already logged in.
+
+Why does Spring Security enable CSRF by default?
+Spring Security assumes that your application may be a browser-based application using cookies/session authentication.
+
+
+Authentication asks:
+Who are you?
+
+CSRF protection asks:
+Was this state-changing request intentionally made by the legitimate application/user?
+
+What is a session?
+A session is a way for the server to remember an authenticated user across multiple requests.
+
+                                 LOGIN
+                                   ↓
+                             Authentication
+                                   ↓
+                            Authentication SUCCESS
+                                   ↓
+                               Session
+                                   ↓
+                           JSESSIONID = ABC123
+                                   ↓
+                               Browser
+
+                           later
+                           ------
+
+                               Browser
+                                  ↓
+                               Cookie: JSESSIONID=ABC123
+                                  ↓
+                               Server
+                                  ↓
+                               Find session ABC123
+                                  ↓
+                               Find Authentication
+                                  ↓
+                               Ram is authenticated
+                                  ↓
+                               Authorization
+                                  ↓
+                               Controller
+
+
+
+
+STATELESS means:
+Spring Security should not use an HTTP session to remember authentication between requests.
+
+
+--------------------------------------------------------------------------------------------------------------
+                 JWT flow
+--------------------------------------------------------------------------------------------------------------
+
+                 LOGIN
+                   ↓
+          AuthenticationManager
+                   ↓
+            Authentication
+                   ↓
+             Generate JWT
+                   ↓
+                Client
+                   ↓
+        ─────────────────────
+        Subsequent Request
+        ─────────────────────
+                   ↓
+        Authorization: Bearer JWT
+                   ↓
+             JWT Filter
+                   ↓
+            Validate JWT
+                   ↓
+          Create Authentication
+                   ↓
+            SecurityContext
+                   ↓
+             Authorization
+                   ↓
+              Controller
+
+
+--------------------------------------------------------------------------------------------------------------
+ Spring Security's Logout Endpoint (session based)
+ --------------------------------------------------------------------------------------------------------------
+
+ Spring Security provides logout support.
+
+ POST /logout
+ Spring Security can:
+
+ Invalidate session
+        ↓
+ Remove authentication
+        ↓
+ Clear session cookie
+
+
+ For example:
+
+ @Bean
+ public SecurityFilterChain securityFilterChain(
+         HttpSecurity http) throws Exception {
+
+     return http
+             .authorizeHttpRequests(auth -> auth
+                     .anyRequest().authenticated()
+             )
+             .logout(logout -> logout
+                     .logoutUrl("/logout")
+             )
+             .build();
+ }
+
+
+  -------------------------------------------------------------------------------------------------------------
+    Then how do JWT applications handle logout?
+  --------------------------------------------------------------------------------------------------------------
+
+
+ There are several approaches.
+ Approach 1 — Short-lived access tokens
+ Approach 2 — Client removes the token
+ Approach 3 — Token revocation / blacklist
+
+
+                              Request
+                                 ↓
+                          Authentication
+                           ↙           ↘
+                         FAIL         SUCCESS
+                          ↓              ↓
+            AuthenticationEntryPoint  Authorization
+                          ↓           ↙        ↘
+                         401        FAIL       SUCCESS
+                                     ↓            ↓
+                              AccessDeniedHandler Controller
+                                     ↓
+                                    403
+
+--------------------------------------------------------------------------------------------------------------
+ SecurityContextHolderFilter do?
+--------------------------------------------------------------------------------------------------------------
+ Its main responsibility is to make the security context available to the current request.
+
+ Think of it as:
+
+ "At the beginning of the request, let's establish the security context that this request should use."
+
+
+                HTTP Request
+                  ↓
+                SecurityContextHolderFilter
+                  ↓
+                SecurityContext available
+                  ↓
+                Other Security Filters
+                  ↓
+                Controller
+
+
+--------------------------------------------------------------------------------------------------------------
+OncePerRequestFilter?
+--------------------------------------------------------------------------------------------------------------
+OncePerRequestFilter is a Spring-provided base class for filters.
+
+
+HttpServletRequest represents the incoming HTTP request.
+
+HttpServletResponse represents the response that your application will send back to the client.
+
+FilterChain
+This is the most important one for understanding filters.
+FilterChain represents the remaining filters in the chain.
+
+
+
+--------------------------------------------------------------------------------------------------------------
+                    jwt flow
+--------------------------------------------------------------------------------------------------------------
+
+
+1. Header
+   → How is the JWT signed?
+
+2. Payload
+   → What claims does it contain?
+
+3. Signature
+   → Has it been modified / was it signed with the right key?
+
+4. Secret/Private Key
+   → What allows the server to create and verify trusted tokens?
+
+                        JWT
+                         │
+              ┌──────────┼──────────┐
+              ↓          ↓          ↓
+           Header      Payload    Signature
+                        │
+                        ↓
+                      Claims
+                        │
+              ┌─────────┼─────────┐
+              ↓         ↓         ↓
+             sub       role       exp
+              │         │          │
+            user      authority   expiry
+            identity
+
+  ------------------------------------------------
+            React
+              ↓
+            Authorization: Bearer JWT
+              ↓
+            JWT Filter
+              ↓
+            Validate signature + expiration
+              ↓
+            Read claims
+              ↓
+            Create Authentication
+              ↓
+            SecurityContext
+              ↓
+            AuthorizationFilter
+              ↓
+            Controller
+            ---------------
+
+
+            Basic Authentication
+            --------------------
+            --------------------
+            Every request
+                 ↓
+            username + password
+                 ↓
+            BasicAuthenticationFilter
+                 ↓
+            AuthenticationManager
+                 ↓
+            UserDetailsService
+                 ↓
+            PasswordEncoder
+                 ↓
+            Authentication
+                 ↓
+            Controller
+
+
+
+            JWT Authentication
+            ------------------
+            LOGIN
+              ↓
+            username + password
+              ↓
+            AuthenticationManager
+              ↓
+            UserDetailsService
+              ↓
+            PasswordEncoder
+              ↓
+            Authentication SUCCESS
+              ↓
+            Generate JWT
+              ↓
+            Return JWT
+
+
+
+
+            Then for future requests:
+            -------------------------
+
+            Every API request
+                   ↓
+            Bearer JWT
+                   ↓
+            JwtAuthenticationFilter
+                   ↓
+            Validate JWT
+                   ↓
+            Create Authentication
+                   ↓
+            SecurityContext
+                   ↓
+            Authorization
+                   ↓
+            Controller
+
+---------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------
+┌─────────────────────────────────────────────┐
+│                  Postman                    │
+│                                             │
+│ GET /account/10                             │
+│ Authorization: Bearer <JWT>                 │
+└──────────────────────┬──────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────┐
+│                   OS                        │
+│                                             │
+│ Receives network request on port 8087       │
+└──────────────────────┬──────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────┐
+│                  TOMCAT                     │
+│                                             │
+│ Embedded Servlet Container                  │
+│                                             │
+│ Tomcat manages:                             │
+│  • HTTP connections                         │
+│  • Servlet lifecycle                        │
+│  • Servlet Filters                          │
+│  • Request / Response objects               │
+│  • Servlet execution                        │
+└──────────────────────┬──────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────┐
+│            SERVLET FILTER CHAIN             │
+│                                             │
+│ Filters can inspect/modify the request      │
+│ before it reaches the Servlet.
+
+     order of execition of this servelet
+     filters are not guarenteed unless
+     explicitely ordered using the @order(1)
+     @order(2) like this                      │
+│                                             │
+│       ┌─────────────────────────┐           │
+│       │ MdcFilter               │           │
+│       │                         │           │
+│       │ Creates requestId       │           │
+│       │ Adds MDC information    │           │
+│       └────────────┬────────────┘           │
+│                    │                        │
+│                    ▼                        │
+│       ┌─────────────────────────┐           │
+│       │ RamFilter               │           │
+│       │                         │           │
+│       │ Logs request            │           │
+│       └────────────┬────────────┘           │
+│                    │                        │
+│                    ▼                        │
+│       ┌─────────────────────────┐           │
+│       │ DelegatingFilterProxy   │           │
+│       │                         │           │
+│       │ Bridge to Spring        │           │
+│       │ Security                │           │
+│       └────────────┬────────────┘           │
+└────────────────────┼────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────┐
+│              SPRING SECURITY                │
+│                                             │
+│              FilterChainProxy               │
+│                     │                       │
+│                     ▼                       │
+│            SecurityFilterChain              │
+│                                             │
+│   ┌─────────────────────────────────────┐   │
+│   │ SecurityContextHolderFilter         │   │
+│   ├─────────────────────────────────────┤   │
+│   │ HeaderWriterFilter                  │   │
+│   ├─────────────────────────────────────┤   │
+│   │ LogoutFilter                        │   │
+│   ├─────────────────────────────────────┤   │
+│   │ JwtAuthFilter                       │   │
+│   │                                     │   │
+│   │ Extracts JWT                        │   │
+│   │ Validates JWT                       │   │
+│   │ Loads UserDetails                   │   │
+│   │ Creates Authentication              │   │
+│   │ Puts it in SecurityContext          │   │
+│   ├─────────────────────────────────────┤   │
+│   │ ...                                 │   │
+│   ├─────────────────────────────────────┤   │
+│   │ AuthorizationFilter                 │   │
+│   │                                     │   │
+│   │ Is this request authenticated?      │   │
+│   │ Is access allowed?                  │   │
+│   └──────────────────┬──────────────────┘   │
+└──────────────────────┼──────────────────────┘
+                       │
+                       │ YES → allowed
+                       ▼
+┌─────────────────────────────────────────────┐
+│             DISPATCHERSERVLET               │
+│                                             │
+│        Spring MVC's main Servlet            │
+│                                             │
+│ Receives the request after filtering        │
+│ and security checks                         │
+└──────────────────────┬──────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────┐
+│              HANDLER MAPPING                │
+│                                             │
+│ Spring looks for a Controller method        │
+│ matching:                                   │
+│                                             │
+│ GET /account/10                             │
+└──────────────────────┬──────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────┐
+│                 CONTROLLER                  │
+│                                             │
+│ @GetMapping("/account/{id}")                │
+│                                             │
+│ getAccount(10)                              │
+└──────────────────────┬──────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────┐
+│                 SERVICE                     │
+│                                             │
+│ AccountService                              │
+│                                             │
+│ Business logic                              │
+└──────────────────────┬──────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────┐
+│               REPOSITORY                    │
+│                                             │
+│ AccountRepo                                 │
+└──────────────────────┬──────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────┐
+│                 DATABASE                    │
+│                                             │
+│                  MySQL                      │
+│                                             │
+│ SELECT account ...                          │
+└──────────────────────┬──────────────────────┘
+                       │
+                       │ Result
+                       ▼
+             ┌───────────────────┐
+             │ Repository        │
+             └─────────┬─────────┘
+                       │
+                       ▼
+             ┌───────────────────┐
+             │ Service           │
+             └─────────┬─────────┘
+                       │
+                       ▼
+             ┌───────────────────┐
+             │ Controller        │
+             └─────────┬─────────┘
+                       │
+                       ▼
+             ┌───────────────────┐
+             │ DispatcherServlet │
+             └─────────┬─────────┘
+                       │
+                       ▼
+             ┌───────────────────┐
+             │ Spring Security   │
+             │ filters return    │
+             └─────────┬─────────┘
+                       │
+                       ▼
+             ┌───────────────────┐
+             │ Servlet filters   │
+             │ return            │
+             │                   │
+             │ RamFilter AFTER   │
+             │ MdcFilter finally │
+             └─────────┬─────────┘
+                       │
+                       ▼
+             ┌───────────────────┐
+             │      Tomcat       │
+             └─────────┬─────────┘
+                       │
+                       ▼
+             ┌───────────────────┐
+             │     Postman       │
+             │                   │
+             │  HTTP Response    │
+             │      200 OK       │
+             └───────────────────┘
+
+
+***Note: We know the order inside the SecurityFilterChain. We should not assume the order between independently
+registered Servlet filters and the SecurityFilterChain unless we explicitly configure or inspect their
+registration order.

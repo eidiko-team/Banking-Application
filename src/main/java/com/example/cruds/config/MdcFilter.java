@@ -27,6 +27,8 @@ public class MdcFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
 
+        log.info("========== MDC FILTER START ==========");
+
         String requestId = request.getHeader("X-Request-Id");
 
         if (requestId == null || requestId.isBlank()) {

@@ -634,7 +634,6 @@ public class MdcFilter extends OncePerRequestFilter {
 
 The main difference is:
 
-```text
 Normal Filter
     ↓
 We implement doFilter()
@@ -973,3 +972,25 @@ Client receives response
 9. **We implement `doFilterInternal()` to add our custom logic.**
 
 10. **For our MDC filter, we add MDC values before `filterChain.doFilter()` and clear them after the request processing finishes.**
+
+
+
+                                    Servlet world
+                                    ────────────────────────────
+
+                                    Tomcat
+                                       ↓
+                                    Servlet Filter Chain
+                                       ↓
+                                    DelegatingFilterProxy
+                                              │
+                                              │ delegates to
+                                              ↓
+                                    ────────────────────────────
+                                    Spring Security world
+
+                                    FilterChainProxy
+                                       ↓
+                                    SecurityFilterChain
+                                       ↓
+                                    Security filters
